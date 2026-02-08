@@ -25,7 +25,7 @@ Best Basket is a shopping list and price comparison web app. Users create shoppi
 
 ## Core Features (MVP)
 1. **Shopping Lists** — create, edit, delete, and name shopping lists
-2. **List Items** — add products with: name, quantity, unit, and category (e.g., dairy, produce, cleaning)
+2. **List Items** — add products with: name, quantity, unit, and category. Default categories are provided (Cleaning, Beverages, Fruits, Grains, Personal Care, Legumes, Nuts & Seeds, Condiments, Snacks, Vegetables, Frozen) but users can also add their own
 3. **Store Prices** — for each product, add price at different stores (e.g., "Milk → Lidl: €0.89, Continente: €1.05")
 4. **Store coupons discounts** - for each store or store product, add discounts that must be considered in the final price
 5. **Price Comparison Dashboard** — summary showing:
@@ -34,6 +34,8 @@ Best Basket is a shopping list and price comparison web app. Users create shoppi
    - "Smart split": which items to buy at which store to save the most
 6. **Shopping Mode** — check off items while shopping, mobile-friendly
 7. **Mobile-first design** — primary usage is on a phone in a store
+8. **Shared Lists** — share a shopping list with other users so everyone can view and edit it
+9. **Template Lists** — save a list as a reusable template (e.g., "Weekly Groceries"). Users can create a new list from a template anytime. Templates can be marked as weekly or monthly, and the app shows a reminder when it's time to create a new list
 
 ## Development Phases
 - **Phase 1:** Project setup, folder structure, Supabase connection, basic auth (sign up / login / logout)
@@ -48,10 +50,13 @@ Best Basket is a shopping list and price comparison web app. Users create shoppi
 ## Database Schema (Supabase)
 Tables to create (ask before implementing if unsure):
 - `users` (handled by Supabase Auth)
-- `shopping_lists` (id, user_id, name, created_at)
-- `list_items` (id, list_id, name, quantity, unit, category)
+- `categories` (id, user_id nullable, name) — `user_id = null` means default category (available to all users); with a `user_id` means user-created
+- `shopping_lists` (id, user_id, name, created_at, is_template, recurrence) — `is_template` (default false) marks the list as a template; `recurrence` (`'weekly'`, `'monthly'`, or `null`) controls reminder frequency
+- `list_items` (id, list_id, name, quantity, unit, category_id)
 - `stores` (id, user_id, name)
 - `item_prices` (id, item_id, store_id, price)
+- `discounts` (id, user_id, store_id, item_price_id, type, value, description)
+- `list_shares` (id, list_id, user_id)
 
 ## Code Style
 - Use TypeScript (but keep types simple — no complex generics)

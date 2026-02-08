@@ -61,6 +61,12 @@ Tables to create (ask before implementing if unsure):
 - Use `async/await` over `.then()` chains
 - Handle errors with try/catch and show user-friendly messages
 
+## Testing
+- **Before every commit**, create and run unit tests for the changed code
+- Use **Jest** + **React Testing Library** for component and logic tests
+- Test files go next to the source file: `ComponentName.test.tsx` or `utils.test.ts`
+- Run tests with `npm test`
+
 ## Git Workflow
 - Make small, focused commits after each meaningful change
 - Use clear commit messages (e.g., "Add shopping list CRUD", "Connect Supabase auth")

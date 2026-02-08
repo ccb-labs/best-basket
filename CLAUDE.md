@@ -73,6 +73,7 @@ Tables to create (ask before implementing if unsure):
 - Run tests with `npm test`
 
 ## Git Workflow
+- Use **feature branches** for each phase/feature (e.g., `feature/phase-1-auth`, `feature/shopping-list-crud`). Create a PR to merge into `main`.
 - Make small, focused commits after each meaningful change
 - Use clear commit messages (e.g., "Add shopping list CRUD", "Connect Supabase auth")
 - Work on one phase at a time

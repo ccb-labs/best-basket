@@ -29,7 +29,7 @@ export async function createClient() {
             );
           } catch {
             // This is called from Server Components where cookies can't
-            // be modified. That's fine — the middleware handles token refresh.
+            // be modified. That's fine — the proxy handles token refresh.
           }
         },
       },

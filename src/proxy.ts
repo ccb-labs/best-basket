@@ -2,16 +2,17 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 /**
- * Middleware runs on every request before the page loads.
+ * Proxy runs on every request before the page loads.
+ * (Next.js 16 renamed "middleware" to "proxy" — same concept, new name.)
  *
  * What does it do?
  * 1. Refreshes the user's auth token if it has expired (keeps them logged in)
  * 2. Redirects unauthenticated users to /login (protects private pages)
  *
- * Without this middleware, users would get randomly logged out when their
+ * Without this proxy, users would get randomly logged out when their
  * short-lived access token expires.
  */
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   // Start with the default "pass through" response
   let supabaseResponse = NextResponse.next({ request });
 
@@ -64,7 +65,7 @@ export async function middleware(request: NextRequest) {
   return supabaseResponse;
 }
 
-// Tell Next.js which routes the middleware should run on.
+// Tell Next.js which routes the proxy should run on.
 // This pattern excludes static files, images, and the favicon so the
 // middleware only runs on actual page/API requests.
 export const config = {

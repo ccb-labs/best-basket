@@ -25,7 +25,7 @@ export default async function ProtectedLayout({
     data: { user },
   } = await supabase.auth.getUser();
 
-  // Safety net: the middleware should redirect unauthenticated users,
+  // Safety net: the proxy should redirect unauthenticated users,
   // but this is a backup just in case.
   if (!user) {
     redirect("/login");

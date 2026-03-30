@@ -39,9 +39,17 @@ export function ShoppingListCard({
   const [isEditing, setIsEditing] = useState(false);
 
   // Track errors from the update and delete actions
-  const [updateState, updateFormAction] = useActionState(updateAction, {
-    error: null,
-  });
+  const [updateState, updateFormAction] = useActionState(
+    async (previousState: ActionResult, formData: FormData) => {
+      const result = await updateAction(previousState, formData);
+      // Exit edit mode when the save succeeds
+      if (!result.error) {
+        setIsEditing(false);
+      }
+      return result;
+    },
+    { error: null }
+  );
   const [deleteState, deleteFormAction] = useActionState(deleteAction, {
     error: null,
   });

@@ -67,10 +67,16 @@ Tables to create (ask before implementing if unsure):
 - Handle errors with try/catch and show user-friendly messages
 
 ## Testing
-- **Before every commit**, create and run unit tests for the changed code
-- Use **Jest** + **React Testing Library** for component and logic tests
-- Test files go next to the source file: `ComponentName.test.tsx` or `utils.test.ts`
-- Run tests with `npm test`
+- **Unit/Component tests:** Jest + React Testing Library
+  - Test files go next to the source file: `ComponentName.test.tsx` or `utils.test.ts`
+  - Run with `npm test`
+- **E2E tests:** Playwright
+  - Test files go in the `e2e/` folder at the project root
+  - One test file per feature area (e.g., `auth.spec.ts`, `shopping-lists.spec.ts`)
+  - Run with `npm run test:e2e` (or `npm run test:e2e:ui` for interactive debugging)
+  - E2E tests require a test user — credentials are in `.env.local`
+  - Auth is handled via `storageState` — login happens once in `auth.setup.ts` and is reused
+- **Before every commit**, run relevant unit tests and E2E tests for the changed code
 
 ## Git Workflow
 - Use **feature branches** for each phase/feature (e.g., `feature/phase-1-auth`, `feature/shopping-list-crud`). Create a PR to merge into `main`.

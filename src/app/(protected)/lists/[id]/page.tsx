@@ -1,12 +1,20 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { AddItemForm } from "@/components/AddItemForm";
+import { ListItemCard } from "@/components/ListItemCard";
+import { EmptyItemState } from "@/components/EmptyItemState";
+import {
+  addItem,
+  updateItem,
+  deleteItem,
+  createCategory,
+} from "@/app/(protected)/actions";
+import type { ListItemWithCategory } from "@/lib/types";
 
 /**
- * List detail page — shows a single shopping list.
- *
- * For now this is a placeholder. In Phase 3, this will show the list's
- * items with the ability to add, edit, and delete products.
+ * List detail page — shows a shopping list's items with the ability
+ * to add, edit, delete, and categorize products.
  *
  * This is a dynamic route — the [id] in the folder name means Next.js
  * will pass the list ID from the URL as params.id. For example,
@@ -22,6 +30,11 @@ export default async function ListDetailPage({
 
   const supabase = await createClient();
 
+  // Get the current user (needed to fetch their custom categories)
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
   // Fetch this specific list — RLS ensures we can only see our own lists
   const { data: list } = await supabase
     .from("shopping_lists")
@@ -34,6 +47,41 @@ export default async function ListDetailPage({
     notFound();
   }
 
+  // Fetch all items in this list, joining the category name.
+  // .select("*, categories(name)") tells Supabase to include the related
+  // category row — it comes back as { categories: { name: "Fruits" } }
+  const { data: items } = await supabase
+    .from("list_items")
+    .select("*, categories(name)")
+    .eq("list_id", id)
+    .order("name");
+
+  // Fetch all categories this user can see: defaults (user_id is null)
+  // plus any custom ones they created (user_id matches their ID)
+  const { data: categories } = await supabase
+    .from("categories")
+    .select("*")
+    .or(`user_id.is.null,user_id.eq.${user?.id}`)
+    .order("name");
+
+  // Group items by category name so we can render them in sections.
+  // Items without a category go into "Uncategorized".
+  const grouped = new Map<string, ListItemWithCategory[]>();
+  for (const item of (items ?? []) as ListItemWithCategory[]) {
+    const categoryName = item.categories?.name ?? "Uncategorized";
+    if (!grouped.has(categoryName)) {
+      grouped.set(categoryName, []);
+    }
+    grouped.get(categoryName)!.push(item);
+  }
+
+  // Sort the groups alphabetically, but put "Uncategorized" last
+  const sortedGroups = [...grouped.entries()].sort(([a], [b]) => {
+    if (a === "Uncategorized") return 1;
+    if (b === "Uncategorized") return -1;
+    return a.localeCompare(b);
+  });
+
   return (
     <div>
       <Link
@@ -45,9 +93,44 @@ export default async function ListDetailPage({
 
       <h2 className="mt-3 text-xl font-semibold">{list.name}</h2>
 
-      <p className="mt-4 text-zinc-500">
-        List items will appear here. Coming in Phase 3!
-      </p>
+      {/* Form to add new items — always visible at the top */}
+      <div className="mt-4">
+        <AddItemForm
+          listId={id}
+          categories={categories ?? []}
+          addItemAction={addItem}
+          createCategoryAction={createCategory}
+        />
+      </div>
+
+      {/* List items grouped by category, or empty state */}
+      <div className="mt-6">
+        {(!items || items.length === 0) ? (
+          <EmptyItemState />
+        ) : (
+          <div className="flex flex-col gap-6">
+            {sortedGroups.map(([categoryName, groupItems]) => (
+              <div key={categoryName}>
+                {/* Category heading */}
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-400">
+                  {categoryName}
+                </p>
+                <div className="flex flex-col gap-2">
+                  {groupItems.map((item) => (
+                    <ListItemCard
+                      key={item.id}
+                      item={item}
+                      categories={categories ?? []}
+                      updateAction={updateItem}
+                      deleteAction={deleteItem}
+                    />
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

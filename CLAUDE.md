@@ -79,7 +79,8 @@ Tables to create (ask before implementing if unsure):
 - **Before every commit**, run relevant unit tests and E2E tests for the changed code
 
 ## Git Workflow
-- **Before starting any task**, check the current branch. If on `main`, use the `/my-branch-name` skill to create a feature branch before making changes.
+- **Always create new branches from `main`** — never branch off a feature or fix branch. This avoids duplicate changes appearing in multiple PRs.
+- **Before starting any task**, check the current branch. If not on `main`, switch to `main` first (`git checkout main && git pull`). Then use the `/my-branch-name` skill to create a feature branch before making changes.
 - Use **feature branches** for each phase/feature (e.g., `feature/phase-1-auth`, `feature/shopping-list-crud`). Create a PR to merge into `main`.
 - Make small, focused commits after each meaningful change
 - Use clear commit messages (e.g., "Add shopping list CRUD", "Connect Supabase auth")

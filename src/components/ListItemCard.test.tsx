@@ -32,6 +32,7 @@ window.confirm = mockConfirm;
 const mockItem: ListItemWithCategory = {
   id: "item-1",
   list_id: "list-1",
+  product_id: "product-1",
   name: "Milk",
   quantity: 2,
   unit: "L",
@@ -42,6 +43,7 @@ const mockItem: ListItemWithCategory = {
 const mockItemNoCategory: ListItemWithCategory = {
   id: "item-2",
   list_id: "list-1",
+  product_id: "product-2",
   name: "Bread",
   quantity: 1,
   unit: null,

@@ -57,7 +57,7 @@ export function ListItemCard({
   const error = updateState.error || deleteState.error;
 
   return (
-    <div className="rounded-md border border-zinc-200 bg-white p-3">
+    <div className="p-3">
       {isEditing ? (
         // ─── Edit Mode ───
         <form action={updateFormAction} className="flex flex-col gap-2">

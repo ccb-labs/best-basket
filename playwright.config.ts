@@ -78,7 +78,13 @@ export default defineConfig({
     // which invalidates the session on the Supabase server.
     {
       name: "authenticated",
-      testMatch: ["shopping-lists.spec.ts", "list-items.spec.ts"],
+      testMatch: [
+        "shopping-lists.spec.ts",
+        "list-items.spec.ts",
+        "stores.spec.ts",
+        "item-prices.spec.ts",
+        "products.spec.ts",
+      ],
       use: {
         ...devices["Desktop Chrome"],
         // Load the saved login session — tests skip the login page

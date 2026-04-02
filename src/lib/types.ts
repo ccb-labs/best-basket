@@ -22,10 +22,18 @@ export type Category = {
   name: string;
 };
 
+/** A product — a real-world item the user buys (e.g., "Milk") */
+export type Product = {
+  id: string;
+  user_id: string;
+  name: string;
+};
+
 /** A list item as stored in the list_items table */
 export type ListItem = {
   id: string;
   list_id: string;
+  product_id: string | null; // links to a shared product for price lookup
   name: string;
   quantity: number;
   unit: string | null;
@@ -41,4 +49,30 @@ export type ListItem = {
  */
 export type ListItemWithCategory = ListItem & {
   categories: { name: string } | null;
+};
+
+/** A store as stored in the stores table */
+export type Store = {
+  id: string;
+  user_id: string;
+  name: string;
+};
+
+/** A price entry linking a product to a store */
+export type ItemPrice = {
+  id: string;
+  product_id: string;
+  store_id: string;
+  price: number;
+};
+
+/**
+ * An item price with the store name included.
+ *
+ * When we query Supabase with .select("*, stores(name)"), it joins the
+ * stores table and returns the result as a nested object. For example:
+ * { id: "...", product_id: "...", store_id: "...", price: 0.89, stores: { name: "Lidl" } }
+ */
+export type ItemPriceWithStore = ItemPrice & {
+  stores: { name: string };
 };

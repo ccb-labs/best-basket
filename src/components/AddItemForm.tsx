@@ -5,16 +5,21 @@
  * ShoppingListForm on the home page). Fields: name, quantity, unit,
  * and category — only name is required.
  *
+ * The name field has autocomplete — as you type, it suggests matching
+ * products from your existing product catalog. Picking a suggestion
+ * reuses that product (so prices and category carry over automatically).
+ *
  * Uses useActionState + formRef to clear the form after a successful
  * submission (same pattern as ShoppingListForm).
  */
 "use client";
 
-import { useActionState, useRef, useState } from "react";
+import { useActionState, useRef, useState, useEffect } from "react";
 import { SubmitButton } from "@/components/SubmitButton";
 import { CreateCategoryForm } from "@/components/CreateCategoryForm";
+import { createClient } from "@/lib/supabase/client";
 import type { ActionResult } from "@/app/(protected)/actions";
-import type { Category } from "@/lib/types";
+import type { Category, Product } from "@/lib/types";
 
 export function AddItemForm({
   listId,
@@ -40,11 +45,43 @@ export function AddItemForm({
   const formRef = useRef<HTMLFormElement>(null);
   const [showNewCategory, setShowNewCategory] = useState(false);
 
+  // ─── Autocomplete state ───
+  const [nameValue, setNameValue] = useState("");
+  const [suggestions, setSuggestions] = useState<Product[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+
+  // Debounced search: query products after the user stops typing for 300ms.
+  // useEffect runs whenever nameValue changes. The timeout is cleaned up
+  // if the user types again before 300ms, preventing too many requests.
+  useEffect(() => {
+    if (nameValue.trim().length < 2) {
+      setSuggestions([]);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      const supabase = createClient();
+      const { data } = await supabase
+        .from("products")
+        .select("id, name, user_id")
+        .ilike("name", `%${nameValue.trim()}%`)
+        .order("name")
+        .limit(5);
+
+      setSuggestions((data ?? []) as Product[]);
+      setShowSuggestions(true);
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [nameValue]);
+
   const [state, formAction] = useActionState(
     async (previousState: ActionResult, formData: FormData) => {
       const result = await addItemAction(previousState, formData);
       if (!result.error) {
         formRef.current?.reset();
+        setNameValue("");
+        setSuggestions([]);
       }
       return result;
     },
@@ -56,14 +93,49 @@ export function AddItemForm({
       <form ref={formRef} action={formAction} className="flex flex-col gap-3">
         <input type="hidden" name="list_id" value={listId} />
 
-        {/* Item name — the only required field */}
-        <input
-          type="text"
-          name="name"
-          placeholder="Item name..."
-          required
-          className="rounded-md border border-zinc-300 px-3 py-2 text-sm focus:border-zinc-500 focus:outline-none"
-        />
+        {/* Item name with autocomplete suggestions */}
+        <div className="relative">
+          <input
+            type="text"
+            name="name"
+            placeholder="Item name..."
+            required
+            value={nameValue}
+            onChange={(e) => setNameValue(e.target.value)}
+            onFocus={() => {
+              if (suggestions.length > 0) setShowSuggestions(true);
+            }}
+            onBlur={() => {
+              // Small delay so click on suggestion registers before hiding
+              setTimeout(() => setShowSuggestions(false), 150);
+            }}
+            autoComplete="off"
+            className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm focus:border-zinc-500 focus:outline-none"
+          />
+
+          {/* Suggestions dropdown */}
+          {showSuggestions && suggestions.length > 0 && (
+            <ul className="absolute z-10 mt-1 w-full rounded-md border border-zinc-200 bg-white shadow-md">
+              {suggestions.map((product) => (
+                <li key={product.id}>
+                  <button
+                    type="button"
+                    onMouseDown={(e) => {
+                      // onMouseDown fires before onBlur, so the click registers
+                      e.preventDefault();
+                      setNameValue(product.name);
+                      setSuggestions([]);
+                      setShowSuggestions(false);
+                    }}
+                    className="w-full px-3 py-2 text-left text-sm text-zinc-700 hover:bg-zinc-50"
+                  >
+                    {product.name}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
 
         {/* Quantity, unit, and category on the same row */}
         <div className="flex gap-2">

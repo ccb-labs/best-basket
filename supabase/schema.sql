@@ -80,11 +80,48 @@ create policy "Users can delete own lists"
 
 
 -- ============================================
+-- PRODUCTS
+-- A "product" represents a real-world item the user buys (e.g., "Milk").
+-- Products are user-level — each user has their own product catalog.
+-- Prices are attached to products (not list items), so if "Milk" is in
+-- multiple lists, the prices are shared automatically.
+-- Products are created automatically when adding items to lists.
+-- ============================================
+create table products (
+  id uuid default gen_random_uuid() primary key,
+  user_id uuid references auth.users(id) on delete cascade not null,
+  name text not null
+);
+
+alter table products enable row level security;
+
+create policy "Users can view own products"
+  on products for select
+  using (user_id = auth.uid());
+
+create policy "Users can insert own products"
+  on products for insert
+  with check (user_id = auth.uid());
+
+create policy "Users can update own products"
+  on products for update
+  using (user_id = auth.uid());
+
+create policy "Users can delete own products"
+  on products for delete
+  using (user_id = auth.uid());
+
+
+-- ============================================
 -- LIST ITEMS
 -- ============================================
 create table list_items (
   id uuid default gen_random_uuid() primary key,
   list_id uuid references shopping_lists(id) on delete cascade not null,
+  -- product_id links this list item to a shared product.
+  -- Prices are on the product, so all list items pointing to the same
+  -- product share the same prices automatically.
+  product_id uuid references products(id) on delete set null,
   name text not null,
   quantity numeric default 1 not null,
   unit text,
@@ -165,58 +202,58 @@ create policy "Users can delete own stores"
 
 -- ============================================
 -- ITEM PRICES
+-- Prices are linked to products (not list items), so they're shared
+-- across all lists that contain the same product.
 -- ============================================
 create table item_prices (
   id uuid default gen_random_uuid() primary key,
-  item_id uuid references list_items(id) on delete cascade not null,
+  product_id uuid references products(id) on delete cascade not null,
   store_id uuid references stores(id) on delete cascade not null,
-  price numeric not null check (price >= 0)
+  price numeric not null check (price >= 0),
+  -- Each product can only have one price per store
+  unique (product_id, store_id)
 );
 
 alter table item_prices enable row level security;
 
--- RLS joins through list_items → shopping_lists to check ownership
-create policy "Users can view prices for own items"
+-- RLS checks ownership through products.user_id
+create policy "Users can view prices for own products"
   on item_prices for select
   using (
     exists (
-      select 1 from list_items
-      join shopping_lists on shopping_lists.id = list_items.list_id
-      where list_items.id = item_prices.item_id
-        and shopping_lists.user_id = auth.uid()
+      select 1 from products
+      where products.id = item_prices.product_id
+        and products.user_id = auth.uid()
     )
   );
 
-create policy "Users can insert prices for own items"
+create policy "Users can insert prices for own products"
   on item_prices for insert
   with check (
     exists (
-      select 1 from list_items
-      join shopping_lists on shopping_lists.id = list_items.list_id
-      where list_items.id = item_prices.item_id
-        and shopping_lists.user_id = auth.uid()
+      select 1 from products
+      where products.id = item_prices.product_id
+        and products.user_id = auth.uid()
     )
   );
 
-create policy "Users can update prices for own items"
+create policy "Users can update prices for own products"
   on item_prices for update
   using (
     exists (
-      select 1 from list_items
-      join shopping_lists on shopping_lists.id = list_items.list_id
-      where list_items.id = item_prices.item_id
-        and shopping_lists.user_id = auth.uid()
+      select 1 from products
+      where products.id = item_prices.product_id
+        and products.user_id = auth.uid()
     )
   );
 
-create policy "Users can delete prices for own items"
+create policy "Users can delete prices for own products"
   on item_prices for delete
   using (
     exists (
-      select 1 from list_items
-      join shopping_lists on shopping_lists.id = list_items.list_id
-      where list_items.id = item_prices.item_id
-        and shopping_lists.user_id = auth.uid()
+      select 1 from products
+      where products.id = item_prices.product_id
+        and products.user_id = auth.uid()
     )
   );
 

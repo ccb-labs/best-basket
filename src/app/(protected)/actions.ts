@@ -15,11 +15,49 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 /** The shape returned by every action — either an error message or null */
 export type ActionResult = {
   error: string | null;
 };
+
+/**
+ * Find an existing product by name (case-insensitive) or create a new one.
+ *
+ * Products are shared across lists — if "Milk" already exists as a product,
+ * we reuse it so prices carry over. This is called when adding or updating
+ * a list item.
+ *
+ * Returns the product ID, or null if something went wrong.
+ */
+async function findOrCreateProduct(
+  supabase: SupabaseClient,
+  userId: string,
+  name: string
+): Promise<string | null> {
+  // Try to find an existing product with this name (case-insensitive)
+  const { data: existing } = await supabase
+    .from("products")
+    .select("id")
+    .eq("user_id", userId)
+    .ilike("name", name)
+    .limit(1)
+    .single();
+
+  if (existing) {
+    return existing.id;
+  }
+
+  // No match — create a new product
+  const { data: created } = await supabase
+    .from("products")
+    .insert({ name, user_id: userId })
+    .select("id")
+    .single();
+
+  return created?.id ?? null;
+}
 
 /**
  * Create a new shopping list.
@@ -143,6 +181,10 @@ export async function deleteList(
 
 /**
  * Add a new item to a shopping list.
+ *
+ * Also finds or creates a "product" for this item name. Products are
+ * shared across lists — if "Milk" already exists as a product (with
+ * prices), the new list item links to it automatically.
  */
 export async function addItem(
   previousState: ActionResult,
@@ -173,12 +215,38 @@ export async function addItem(
     return { error: "You must be logged in." };
   }
 
+  // Find or create a product with this name.
+  // ilike does a case-insensitive match so "Milk" and "milk" are the same product.
+  const productId = await findOrCreateProduct(supabase, user.id, name.trim());
+  if (!productId) {
+    return { error: "Could not create product. Please try again." };
+  }
+
+  // If the user didn't pick a category, try to auto-fill it from a previous
+  // usage of this product. For example, if "Amendoim" was previously added
+  // with "Nuts & Seeds", new list items for "Amendoim" get that category too.
+  let resolvedCategoryId = categoryId || null;
+  if (!resolvedCategoryId) {
+    const { data: previousItem } = await supabase
+      .from("list_items")
+      .select("category_id")
+      .eq("product_id", productId)
+      .not("category_id", "is", null)
+      .limit(1)
+      .single();
+
+    if (previousItem?.category_id) {
+      resolvedCategoryId = previousItem.category_id;
+    }
+  }
+
   const { error } = await supabase.from("list_items").insert({
     list_id: listId,
+    product_id: productId,
     name: name.trim(),
     quantity,
     unit: unit?.trim() || null, // empty string becomes null
-    category_id: categoryId || null, // empty string becomes null
+    category_id: resolvedCategoryId, // auto-filled from previous usage if not set
   });
 
   if (error) {
@@ -191,6 +259,10 @@ export async function addItem(
 
 /**
  * Update an existing list item (name, quantity, unit, category).
+ *
+ * If the name changes, the product link is updated to match the new name.
+ * For example, renaming "Milk" to "Organic Milk" links the item to the
+ * "Organic Milk" product (creating it if needed), so it shows different prices.
  */
 export async function updateItem(
   previousState: ActionResult,
@@ -221,11 +293,16 @@ export async function updateItem(
     return { error: "You must be logged in." };
   }
 
+  // Always find/create a product for the current name.
+  // If the user renamed the item, this links it to the correct product.
+  const productId = await findOrCreateProduct(supabase, user.id, name.trim());
+
   // RLS ensures users can only update items in their own lists
   const { error } = await supabase
     .from("list_items")
     .update({
       name: name.trim(),
+      product_id: productId,
       quantity,
       unit: unit?.trim() || null,
       category_id: categoryId || null,
@@ -315,6 +392,410 @@ export async function createCategory(
   }
 
   // Revalidate the list page so the new category appears in the dropdown
+  revalidatePath(`/lists/${listId}`);
+  return { error: null };
+}
+
+// ─── Product Actions ──────────────────────────────────────────────
+
+/**
+ * Rename a product.
+ *
+ * All list items linked to this product keep their link — they'll
+ * display the new name next time data is fetched.
+ */
+export async function updateProduct(
+  previousState: ActionResult,
+  formData: FormData
+): Promise<ActionResult> {
+  const id = formData.get("id") as string;
+  const name = formData.get("name") as string;
+
+  if (!name || name.trim().length === 0) {
+    return { error: "Product name cannot be empty." };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { error: "You must be logged in." };
+  }
+
+  // Also update the name on all list items that use this product,
+  // so the display name stays in sync
+  const { error } = await supabase
+    .from("products")
+    .update({ name: name.trim() })
+    .eq("id", id);
+
+  if (error) {
+    return { error: "Could not rename product. Please try again." };
+  }
+
+  // Update list item names to match the new product name
+  await supabase
+    .from("list_items")
+    .update({ name: name.trim() })
+    .eq("product_id", id);
+
+  revalidatePath("/products");
+  return { error: null };
+}
+
+/**
+ * Delete a product and all its prices.
+ *
+ * List items that reference this product will have their product_id
+ * set to null (ON DELETE SET NULL), so they stay in their lists but
+ * lose their price data.
+ */
+export async function deleteProduct(
+  previousState: ActionResult,
+  formData: FormData
+): Promise<ActionResult> {
+  const id = formData.get("id") as string;
+
+  if (!id) {
+    return { error: "Missing product ID." };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { error: "You must be logged in." };
+  }
+
+  const { error } = await supabase.from("products").delete().eq("id", id);
+
+  if (error) {
+    return { error: "Could not delete product. Please try again." };
+  }
+
+  revalidatePath("/products");
+  return { error: null };
+}
+
+/**
+ * Merge one product into another.
+ *
+ * All list items and prices from the source product are moved to the
+ * target product. If both products have a price at the same store,
+ * the target's price is kept. Then the source product is deleted.
+ *
+ * This is useful for cleaning up duplicates (e.g., merging "Caju"
+ * into "Castanha de Caju").
+ */
+export async function mergeProducts(
+  previousState: ActionResult,
+  formData: FormData
+): Promise<ActionResult> {
+  const sourceId = formData.get("source_id") as string;
+  const targetId = formData.get("target_id") as string;
+
+  if (!sourceId || !targetId) {
+    return { error: "Please select a product to merge into." };
+  }
+
+  if (sourceId === targetId) {
+    return { error: "Cannot merge a product into itself." };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { error: "You must be logged in." };
+  }
+
+  // 1. Move list items from source to target
+  const { error: itemsError } = await supabase
+    .from("list_items")
+    .update({ product_id: targetId })
+    .eq("product_id", sourceId);
+
+  if (itemsError) {
+    return { error: "Could not merge list items. Please try again." };
+  }
+
+  // 2. Delete source prices that conflict with target prices
+  //    (same store). The target's prices take priority.
+  const { data: targetPrices } = await supabase
+    .from("item_prices")
+    .select("store_id")
+    .eq("product_id", targetId);
+
+  const targetStoreIds = (targetPrices ?? []).map((p) => p.store_id);
+
+  if (targetStoreIds.length > 0) {
+    await supabase
+      .from("item_prices")
+      .delete()
+      .eq("product_id", sourceId)
+      .in("store_id", targetStoreIds);
+  }
+
+  // 3. Move remaining source prices to target
+  await supabase
+    .from("item_prices")
+    .update({ product_id: targetId })
+    .eq("product_id", sourceId);
+
+  // 4. Delete the source product (now has no items or prices)
+  await supabase.from("products").delete().eq("id", sourceId);
+
+  revalidatePath("/products");
+  return { error: null };
+}
+
+// ─── Store Actions ────────────────────────────────────────────────
+
+/**
+ * Create a new store for the current user.
+ *
+ * Stores are user-level resources (not tied to a specific list).
+ * Each user has their own set of stores (e.g., "Lidl", "Continente").
+ */
+export async function createStore(
+  previousState: ActionResult,
+  formData: FormData
+): Promise<ActionResult> {
+  const name = formData.get("name") as string;
+
+  if (!name || name.trim().length === 0) {
+    return { error: "Please enter a store name." };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { error: "You must be logged in." };
+  }
+
+  const { error } = await supabase
+    .from("stores")
+    .insert({ name: name.trim(), user_id: user.id });
+
+  if (error) {
+    return { error: "Could not create store. Please try again." };
+  }
+
+  revalidatePath("/stores");
+  return { error: null };
+}
+
+/**
+ * Rename an existing store.
+ */
+export async function updateStore(
+  previousState: ActionResult,
+  formData: FormData
+): Promise<ActionResult> {
+  const id = formData.get("id") as string;
+  const name = formData.get("name") as string;
+
+  if (!name || name.trim().length === 0) {
+    return { error: "Store name cannot be empty." };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { error: "You must be logged in." };
+  }
+
+  // RLS ensures users can only update their own stores
+  const { error } = await supabase
+    .from("stores")
+    .update({ name: name.trim() })
+    .eq("id", id);
+
+  if (error) {
+    return { error: "Could not update store. Please try again." };
+  }
+
+  revalidatePath("/stores");
+  return { error: null };
+}
+
+/**
+ * Delete a store.
+ *
+ * This also deletes all item_prices at this store because the database
+ * schema uses ON DELETE CASCADE on the foreign key.
+ */
+export async function deleteStore(
+  previousState: ActionResult,
+  formData: FormData
+): Promise<ActionResult> {
+  const id = formData.get("id") as string;
+
+  if (!id) {
+    return { error: "Missing store ID." };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { error: "You must be logged in." };
+  }
+
+  // RLS ensures users can only delete their own stores
+  const { error } = await supabase.from("stores").delete().eq("id", id);
+
+  if (error) {
+    return { error: "Could not delete store. Please try again." };
+  }
+
+  revalidatePath("/stores");
+  return { error: null };
+}
+
+// ─── Item Price Actions ───────────────────────────────────────────
+
+/**
+ * Add a price for a product at a specific store.
+ *
+ * Prices are on products (not list items), so they're shared across
+ * all lists that contain the same product. The unique constraint on
+ * (product_id, store_id) prevents duplicate prices.
+ */
+export async function addPrice(
+  previousState: ActionResult,
+  formData: FormData
+): Promise<ActionResult> {
+  const productId = formData.get("product_id") as string;
+  const storeId = formData.get("store_id") as string;
+  const priceRaw = formData.get("price") as string;
+  const listId = formData.get("list_id") as string;
+
+  if (!storeId) {
+    return { error: "Please select a store." };
+  }
+
+  if (!priceRaw || priceRaw.trim().length === 0) {
+    return { error: "Please enter a price." };
+  }
+
+  const price = parseFloat(priceRaw);
+  if (isNaN(price) || price < 0) {
+    return { error: "Price must be zero or a positive number." };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { error: "You must be logged in." };
+  }
+
+  const { error } = await supabase
+    .from("item_prices")
+    .insert({ product_id: productId, store_id: storeId, price });
+
+  if (error) {
+    // The unique constraint will trigger an error if a price already exists
+    if (error.code === "23505") {
+      return { error: "This product already has a price at that store." };
+    }
+    return { error: "Could not add price. Please try again." };
+  }
+
+  revalidatePath(`/lists/${listId}`);
+  return { error: null };
+}
+
+/**
+ * Update the price of an existing item price entry.
+ */
+export async function updatePrice(
+  previousState: ActionResult,
+  formData: FormData
+): Promise<ActionResult> {
+  const id = formData.get("id") as string;
+  const priceRaw = formData.get("price") as string;
+  const listId = formData.get("list_id") as string;
+
+  if (!priceRaw || priceRaw.trim().length === 0) {
+    return { error: "Please enter a price." };
+  }
+
+  const price = parseFloat(priceRaw);
+  if (isNaN(price) || price < 0) {
+    return { error: "Price must be zero or a positive number." };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { error: "You must be logged in." };
+  }
+
+  // RLS ensures users can only update prices for items in their own lists
+  const { error } = await supabase
+    .from("item_prices")
+    .update({ price })
+    .eq("id", id);
+
+  if (error) {
+    return { error: "Could not update price. Please try again." };
+  }
+
+  revalidatePath(`/lists/${listId}`);
+  return { error: null };
+}
+
+/**
+ * Delete an item price entry.
+ */
+export async function deletePrice(
+  previousState: ActionResult,
+  formData: FormData
+): Promise<ActionResult> {
+  const id = formData.get("id") as string;
+  const listId = formData.get("list_id") as string;
+
+  if (!id) {
+    return { error: "Missing price ID." };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { error: "You must be logged in." };
+  }
+
+  // RLS ensures users can only delete prices for items in their own lists
+  const { error } = await supabase.from("item_prices").delete().eq("id", id);
+
+  if (error) {
+    return { error: "Could not delete price. Please try again." };
+  }
+
   revalidatePath(`/lists/${listId}`);
   return { error: null };
 }

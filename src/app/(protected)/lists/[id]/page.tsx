@@ -3,18 +3,24 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { AddItemForm } from "@/components/AddItemForm";
 import { ListItemCard } from "@/components/ListItemCard";
+import { ItemPricesSection } from "@/components/ItemPricesSection";
 import { EmptyItemState } from "@/components/EmptyItemState";
 import {
   addItem,
   updateItem,
   deleteItem,
   createCategory,
+  addPrice,
+  updatePrice,
+  deletePrice,
 } from "@/app/(protected)/actions";
-import type { ListItemWithCategory } from "@/lib/types";
+import type { ListItemWithCategory, Store, ItemPriceWithStore } from "@/lib/types";
 
 /**
  * List detail page — shows a shopping list's items with the ability
  * to add, edit, delete, and categorize products.
+ *
+ * Also shows prices per item at different stores (Phase 4).
  *
  * This is a dynamic route — the [id] in the folder name means Next.js
  * will pass the list ID from the URL as params.id. For example,
@@ -63,6 +69,38 @@ export default async function ListDetailPage({
     .select("*")
     .or(`user_id.is.null,user_id.eq.${user?.id}`)
     .order("name");
+
+  // Fetch all stores for the current user (needed for the price dropdowns)
+  const { data: stores } = await supabase
+    .from("stores")
+    .select("*")
+    .order("name");
+
+  // Fetch prices by product_id. Prices are on products (not list items),
+  // so they're shared across lists. We collect the product_ids from the
+  // items, then fetch all prices for those products.
+  const productIds = (items ?? [])
+    .map((i) => i.product_id)
+    .filter((id): id is string => id !== null);
+  const uniqueProductIds = [...new Set(productIds)];
+
+  const { data: prices } =
+    uniqueProductIds.length > 0
+      ? await supabase
+          .from("item_prices")
+          .select("*, stores(name)")
+          .in("product_id", uniqueProductIds)
+      : { data: [] };
+
+  // Group prices by product_id so we can pass each item's prices easily.
+  // Multiple items can share the same product (and thus the same prices).
+  const pricesByProduct = new Map<string, ItemPriceWithStore[]>();
+  for (const price of (prices ?? []) as ItemPriceWithStore[]) {
+    if (!pricesByProduct.has(price.product_id)) {
+      pricesByProduct.set(price.product_id, []);
+    }
+    pricesByProduct.get(price.product_id)!.push(price);
+  }
 
   // Group items by category name so we can render them in sections.
   // Items without a category go into "Uncategorized".
@@ -117,13 +155,30 @@ export default async function ListDetailPage({
                 </p>
                 <div className="flex flex-col gap-2">
                   {groupItems.map((item) => (
-                    <ListItemCard
+                    <div
                       key={item.id}
-                      item={item}
-                      categories={categories ?? []}
-                      updateAction={updateItem}
-                      deleteAction={deleteItem}
-                    />
+                      className="rounded-md border border-zinc-200 bg-white"
+                    >
+                      {/* Item details (name, quantity, category, edit/delete) */}
+                      <ListItemCard
+                        item={item}
+                        categories={categories ?? []}
+                        updateAction={updateItem}
+                        deleteAction={deleteItem}
+                      />
+                      {/* Prices section — only shown if item has a product link */}
+                      {item.product_id && (
+                        <ItemPricesSection
+                          productId={item.product_id}
+                          listId={id}
+                          prices={pricesByProduct.get(item.product_id) ?? []}
+                          stores={(stores ?? []) as Store[]}
+                          addPriceAction={addPrice}
+                          updatePriceAction={updatePrice}
+                          deletePriceAction={deletePrice}
+                        />
+                      )}
+                    </div>
                   ))}
                 </div>
               </div>

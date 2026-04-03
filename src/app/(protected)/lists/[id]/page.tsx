@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { fetchListPageData } from "@/lib/list-data";
 import { AddItemForm } from "@/components/AddItemForm";
 import { ListItemCard } from "@/components/ListItemCard";
 import { ItemPricesSection } from "@/components/ItemPricesSection";
@@ -17,7 +17,7 @@ import {
   updateDiscount,
   deleteDiscount,
 } from "@/app/(protected)/actions";
-import type { ListItemWithCategory, Store, ItemPriceWithStore, Discount } from "@/lib/types";
+import type { ListItemWithCategory } from "@/lib/types";
 
 /**
  * List detail page — shows a shopping list's items with the ability
@@ -37,109 +37,21 @@ export default async function ListDetailPage({
   // In Next.js 15+, params is a Promise that we need to await
   const { id } = await params;
 
-  const supabase = await createClient();
-
-  // Get the current user (needed to fetch their custom categories)
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  // Fetch this specific list — RLS ensures we can only see our own lists
-  const { data: list } = await supabase
-    .from("shopping_lists")
-    .select("*")
-    .eq("id", id)
-    .single();
+  // Fetch all list data using the shared helper (also used by the compare page)
+  const data = await fetchListPageData(id);
 
   // If the list doesn't exist (or doesn't belong to this user), show 404
-  if (!list) {
+  if (!data) {
     notFound();
   }
 
-  // Fetch all items in this list, joining the category name.
-  // .select("*, categories(name)") tells Supabase to include the related
-  // category row — it comes back as { categories: { name: "Fruits" } }
-  const { data: items } = await supabase
-    .from("list_items")
-    .select("*, categories(name)")
-    .eq("list_id", id)
-    .order("name");
-
-  // Fetch all categories this user can see: defaults (user_id is null)
-  // plus any custom ones they created (user_id matches their ID)
-  const { data: categories } = await supabase
-    .from("categories")
-    .select("*")
-    .or(`user_id.is.null,user_id.eq.${user?.id}`)
-    .order("name");
-
-  // Fetch all stores for the current user (needed for the price dropdowns)
-  const { data: stores } = await supabase
-    .from("stores")
-    .select("*")
-    .order("name");
-
-  // Fetch prices by product_id. Prices are on products (not list items),
-  // so they're shared across lists. We collect the product_ids from the
-  // items, then fetch all prices for those products.
-  const productIds = (items ?? [])
-    .map((i) => i.product_id)
-    .filter((id): id is string => id !== null);
-  const uniqueProductIds = [...new Set(productIds)];
-
-  const { data: prices } =
-    uniqueProductIds.length > 0
-      ? await supabase
-          .from("item_prices")
-          .select("*, stores(name)")
-          .in("product_id", uniqueProductIds)
-      : { data: [] };
-
-  // Group prices by product_id so we can pass each item's prices easily.
-  // Multiple items can share the same product (and thus the same prices).
-  const pricesByProduct = new Map<string, ItemPriceWithStore[]>();
-  for (const price of (prices ?? []) as ItemPriceWithStore[]) {
-    if (!pricesByProduct.has(price.product_id)) {
-      pricesByProduct.set(price.product_id, []);
-    }
-    pricesByProduct.get(price.product_id)!.push(price);
-  }
-
-  // Fetch discounts that could apply to the prices on this list.
-  // Two kinds fetched in parallel (they're independent queries):
-  // 1. Product-level discounts — target a specific price entry
-  // 2. Store-level discounts — apply to all products at a store
-  const priceIds = (prices ?? []).map((p) => p.id);
-  const storeIdsInPrices = [
-    ...new Set((prices ?? []).map((p) => p.store_id)),
-  ];
-
-  const [{ data: productDiscounts }, { data: storeDiscounts }] =
-    await Promise.all([
-      priceIds.length > 0
-        ? supabase
-            .from("discounts")
-            .select("*")
-            .in("item_price_id", priceIds)
-        : Promise.resolve({ data: [] }),
-      storeIdsInPrices.length > 0
-        ? supabase
-            .from("discounts")
-            .select("*")
-            .in("store_id", storeIdsInPrices)
-            .is("item_price_id", null)
-        : Promise.resolve({ data: [] }),
-    ]);
-
-  const allDiscounts = [
-    ...((productDiscounts ?? []) as Discount[]),
-    ...((storeDiscounts ?? []) as Discount[]),
-  ];
+  const { list, items, categories, stores, pricesByProduct, allDiscounts } =
+    data;
 
   // Group items by category name so we can render them in sections.
   // Items without a category go into "Uncategorized".
   const grouped = new Map<string, ListItemWithCategory[]>();
-  for (const item of (items ?? []) as ListItemWithCategory[]) {
+  for (const item of items) {
     const categoryName = item.categories?.name ?? "Uncategorized";
     if (!grouped.has(categoryName)) {
       grouped.set(categoryName, []);
@@ -163,13 +75,25 @@ export default async function ListDetailPage({
         &larr; Back to lists
       </Link>
 
-      <h2 className="mt-3 text-xl font-semibold">{list.name}</h2>
+      <div className="mt-3 flex items-center justify-between">
+        <h2 className="text-xl font-semibold">{list.name}</h2>
+
+        {/* Show "Compare Prices" link only when there are prices to compare */}
+        {pricesByProduct.size > 0 && (
+          <Link
+            href={`/lists/${id}/compare`}
+            className="rounded-md bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-zinc-800"
+          >
+            Compare Prices
+          </Link>
+        )}
+      </div>
 
       {/* Form to add new items — always visible at the top */}
       <div className="mt-4">
         <AddItemForm
           listId={id}
-          categories={categories ?? []}
+          categories={categories}
           addItemAction={addItem}
           createCategoryAction={createCategory}
         />
@@ -177,7 +101,7 @@ export default async function ListDetailPage({
 
       {/* List items grouped by category, or empty state */}
       <div className="mt-6">
-        {(!items || items.length === 0) ? (
+        {items.length === 0 ? (
           <EmptyItemState />
         ) : (
           <div className="flex flex-col gap-6">
@@ -196,7 +120,7 @@ export default async function ListDetailPage({
                       {/* Item details (name, quantity, category, edit/delete) */}
                       <ListItemCard
                         item={item}
-                        categories={categories ?? []}
+                        categories={categories}
                         updateAction={updateItem}
                         deleteAction={deleteItem}
                       />
@@ -206,7 +130,7 @@ export default async function ListDetailPage({
                           productId={item.product_id}
                           listId={id}
                           prices={pricesByProduct.get(item.product_id) ?? []}
-                          stores={(stores ?? []) as Store[]}
+                          stores={stores}
                           discounts={allDiscounts}
                           addPriceAction={addPrice}
                           updatePriceAction={updatePrice}

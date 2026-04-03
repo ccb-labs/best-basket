@@ -45,6 +45,9 @@ const mockActions = {
   addPriceAction: jest.fn(),
   updatePriceAction: jest.fn(),
   deletePriceAction: jest.fn(),
+  addDiscountAction: jest.fn(),
+  updateDiscountAction: jest.fn(),
+  deleteDiscountAction: jest.fn(),
 };
 
 describe("ItemPricesSection", () => {
@@ -59,6 +62,7 @@ describe("ItemPricesSection", () => {
         listId="list-1"
         prices={[]}
         stores={mockStores}
+        discounts={[]}
         {...mockActions}
       />
     );
@@ -73,6 +77,7 @@ describe("ItemPricesSection", () => {
         listId="list-1"
         prices={mockPrices}
         stores={mockStores}
+        discounts={[]}
         {...mockActions}
       />
     );
@@ -89,6 +94,7 @@ describe("ItemPricesSection", () => {
         listId="list-1"
         prices={mockPrices}
         stores={mockStores}
+        discounts={[]}
         {...mockActions}
       />
     );
@@ -111,6 +117,7 @@ describe("ItemPricesSection", () => {
         listId="list-1"
         prices={mockPrices}
         stores={mockStores}
+        discounts={[]}
         {...mockActions}
       />
     );

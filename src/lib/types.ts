@@ -76,3 +76,24 @@ export type ItemPrice = {
 export type ItemPriceWithStore = ItemPrice & {
   stores: { name: string };
 };
+
+/**
+ * A discount/coupon as stored in the discounts table.
+ *
+ * Discounts can apply at two levels:
+ * - Store-level (item_price_id = null): applies to all products at that store
+ * - Product-level (item_price_id set): applies to one specific product at a store
+ *
+ * The "type" field determines how the discount is calculated:
+ * - "percentage": reduces the price by a percentage (e.g., 10 means 10% off)
+ * - "fixed": subtracts a fixed amount (e.g., 0.50 means €0.50 off)
+ */
+export type Discount = {
+  id: string;
+  user_id: string;
+  store_id: string;
+  item_price_id: string | null; // null = store-level, set = product-level
+  type: "percentage" | "fixed";
+  value: number;
+  description: string | null;
+};

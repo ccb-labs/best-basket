@@ -799,3 +799,176 @@ export async function deletePrice(
   revalidatePath(`/lists/${listId}`);
   return { error: null };
 }
+
+// ─── Discount Actions ────────────────────────────────────────────
+
+/**
+ * Validate discount type and value fields.
+ *
+ * Shared by addDiscount and updateDiscount to avoid duplicating the
+ * same validation logic in both actions.
+ */
+function validateDiscountInput(
+  type: string,
+  valueRaw: string
+): { value: number; error: string | null } {
+  if (type !== "percentage" && type !== "fixed") {
+    return { value: 0, error: "Please select a discount type." };
+  }
+
+  if (!valueRaw || valueRaw.trim().length === 0) {
+    return { value: 0, error: "Please enter a discount value." };
+  }
+
+  const value = parseFloat(valueRaw);
+  if (isNaN(value) || value <= 0) {
+    return { value: 0, error: "Discount value must be a positive number." };
+  }
+
+  if (type === "percentage" && value > 100) {
+    return { value: 0, error: "Percentage discount cannot exceed 100%." };
+  }
+
+  return { value, error: null };
+}
+
+/**
+ * Add a discount/coupon for a store or a specific product at a store.
+ *
+ * If item_price_id is provided, the discount applies to that specific
+ * product at that store. If omitted, it's a store-level discount that
+ * applies to all products at that store.
+ */
+export async function addDiscount(
+  previousState: ActionResult,
+  formData: FormData
+): Promise<ActionResult> {
+  const storeId = formData.get("store_id") as string;
+  const itemPriceId = (formData.get("item_price_id") as string) || null;
+  const type = formData.get("type") as string;
+  const valueRaw = formData.get("value") as string;
+  const description = (formData.get("description") as string)?.trim() || null;
+  const listId = formData.get("list_id") as string;
+
+  if (!storeId) {
+    return { error: "Missing store." };
+  }
+
+  const validated = validateDiscountInput(type, valueRaw);
+  if (validated.error) {
+    return { error: validated.error };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { error: "You must be logged in." };
+  }
+
+  const { error } = await supabase.from("discounts").insert({
+    user_id: user.id,
+    store_id: storeId,
+    item_price_id: itemPriceId,
+    type,
+    value: validated.value,
+    description,
+  });
+
+  if (error) {
+    return { error: "Could not add discount. Please try again." };
+  }
+
+  revalidatePath("/stores");
+  if (listId) {
+    revalidatePath(`/lists/${listId}`);
+  }
+  return { error: null };
+}
+
+/**
+ * Update an existing discount (type, value, or description).
+ */
+export async function updateDiscount(
+  previousState: ActionResult,
+  formData: FormData
+): Promise<ActionResult> {
+  const id = formData.get("id") as string;
+  const type = formData.get("type") as string;
+  const valueRaw = formData.get("value") as string;
+  const description = (formData.get("description") as string)?.trim() || null;
+  const listId = formData.get("list_id") as string;
+
+  if (!id) {
+    return { error: "Missing discount ID." };
+  }
+
+  const validated = validateDiscountInput(type, valueRaw);
+  if (validated.error) {
+    return { error: validated.error };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { error: "You must be logged in." };
+  }
+
+  // RLS ensures users can only update their own discounts
+  const { error } = await supabase
+    .from("discounts")
+    .update({ type, value: validated.value, description })
+    .eq("id", id);
+
+  if (error) {
+    return { error: "Could not update discount. Please try again." };
+  }
+
+  revalidatePath("/stores");
+  if (listId) {
+    revalidatePath(`/lists/${listId}`);
+  }
+  return { error: null };
+}
+
+/**
+ * Delete a discount.
+ */
+export async function deleteDiscount(
+  previousState: ActionResult,
+  formData: FormData
+): Promise<ActionResult> {
+  const id = formData.get("id") as string;
+  const listId = formData.get("list_id") as string;
+
+  if (!id) {
+    return { error: "Missing discount ID." };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { error: "You must be logged in." };
+  }
+
+  // RLS ensures users can only delete their own discounts
+  const { error } = await supabase.from("discounts").delete().eq("id", id);
+
+  if (error) {
+    return { error: "Could not delete discount. Please try again." };
+  }
+
+  revalidatePath("/stores");
+  if (listId) {
+    revalidatePath(`/lists/${listId}`);
+  }
+  return { error: null };
+}

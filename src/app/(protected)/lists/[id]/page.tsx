@@ -13,8 +13,11 @@ import {
   addPrice,
   updatePrice,
   deletePrice,
+  addDiscount,
+  updateDiscount,
+  deleteDiscount,
 } from "@/app/(protected)/actions";
-import type { ListItemWithCategory, Store, ItemPriceWithStore } from "@/lib/types";
+import type { ListItemWithCategory, Store, ItemPriceWithStore, Discount } from "@/lib/types";
 
 /**
  * List detail page — shows a shopping list's items with the ability
@@ -102,6 +105,37 @@ export default async function ListDetailPage({
     pricesByProduct.get(price.product_id)!.push(price);
   }
 
+  // Fetch discounts that could apply to the prices on this list.
+  // Two kinds fetched in parallel (they're independent queries):
+  // 1. Product-level discounts — target a specific price entry
+  // 2. Store-level discounts — apply to all products at a store
+  const priceIds = (prices ?? []).map((p) => p.id);
+  const storeIdsInPrices = [
+    ...new Set((prices ?? []).map((p) => p.store_id)),
+  ];
+
+  const [{ data: productDiscounts }, { data: storeDiscounts }] =
+    await Promise.all([
+      priceIds.length > 0
+        ? supabase
+            .from("discounts")
+            .select("*")
+            .in("item_price_id", priceIds)
+        : Promise.resolve({ data: [] }),
+      storeIdsInPrices.length > 0
+        ? supabase
+            .from("discounts")
+            .select("*")
+            .in("store_id", storeIdsInPrices)
+            .is("item_price_id", null)
+        : Promise.resolve({ data: [] }),
+    ]);
+
+  const allDiscounts = [
+    ...((productDiscounts ?? []) as Discount[]),
+    ...((storeDiscounts ?? []) as Discount[]),
+  ];
+
   // Group items by category name so we can render them in sections.
   // Items without a category go into "Uncategorized".
   const grouped = new Map<string, ListItemWithCategory[]>();
@@ -173,9 +207,13 @@ export default async function ListDetailPage({
                           listId={id}
                           prices={pricesByProduct.get(item.product_id) ?? []}
                           stores={(stores ?? []) as Store[]}
+                          discounts={allDiscounts}
                           addPriceAction={addPrice}
                           updatePriceAction={updatePrice}
                           deletePriceAction={deletePrice}
+                          addDiscountAction={addDiscount}
+                          updateDiscountAction={updateDiscount}
+                          deleteDiscountAction={deleteDiscount}
                         />
                       )}
                     </div>

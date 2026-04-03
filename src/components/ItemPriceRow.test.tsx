@@ -39,6 +39,20 @@ const mockPrice: ItemPriceWithStore = {
 
 const mockUpdateAction = jest.fn();
 const mockDeleteAction = jest.fn();
+const mockAddDiscountAction = jest.fn();
+const mockUpdateDiscountAction = jest.fn();
+const mockDeleteDiscountAction = jest.fn();
+
+/** Shared props that every test render needs */
+const sharedProps = {
+  listId: "list-1",
+  discounts: [],
+  updatePriceAction: mockUpdateAction,
+  deletePriceAction: mockDeleteAction,
+  addDiscountAction: mockAddDiscountAction,
+  updateDiscountAction: mockUpdateDiscountAction,
+  deleteDiscountAction: mockDeleteDiscountAction,
+};
 
 describe("ItemPriceRow", () => {
   beforeEach(() => {
@@ -47,28 +61,14 @@ describe("ItemPriceRow", () => {
   });
 
   it("renders store name and price in view mode", () => {
-    render(
-      <ItemPriceRow
-        price={mockPrice}
-        listId="list-1"
-        updatePriceAction={mockUpdateAction}
-        deletePriceAction={mockDeleteAction}
-      />
-    );
+    render(<ItemPriceRow price={mockPrice} {...sharedProps} />);
 
     expect(screen.getByText("Lidl")).toBeInTheDocument();
     expect(screen.getByText("€0.89")).toBeInTheDocument();
   });
 
   it("renders edit and delete buttons", () => {
-    render(
-      <ItemPriceRow
-        price={mockPrice}
-        listId="list-1"
-        updatePriceAction={mockUpdateAction}
-        deletePriceAction={mockDeleteAction}
-      />
-    );
+    render(<ItemPriceRow price={mockPrice} {...sharedProps} />);
 
     expect(
       screen.getByRole("button", { name: "Edit price at Lidl" })
@@ -79,14 +79,7 @@ describe("ItemPriceRow", () => {
   });
 
   it("switches to edit mode when edit button is clicked", () => {
-    render(
-      <ItemPriceRow
-        price={mockPrice}
-        listId="list-1"
-        updatePriceAction={mockUpdateAction}
-        deletePriceAction={mockDeleteAction}
-      />
-    );
+    render(<ItemPriceRow price={mockPrice} {...sharedProps} />);
 
     fireEvent.click(
       screen.getByRole("button", { name: "Edit price at Lidl" })
@@ -101,14 +94,7 @@ describe("ItemPriceRow", () => {
   });
 
   it("exits edit mode when cancel is clicked", () => {
-    render(
-      <ItemPriceRow
-        price={mockPrice}
-        listId="list-1"
-        updatePriceAction={mockUpdateAction}
-        deletePriceAction={mockDeleteAction}
-      />
-    );
+    render(<ItemPriceRow price={mockPrice} {...sharedProps} />);
 
     fireEvent.click(
       screen.getByRole("button", { name: "Edit price at Lidl" })
@@ -123,14 +109,7 @@ describe("ItemPriceRow", () => {
   it("shows confirm dialog when delete is clicked", () => {
     mockConfirm.mockReturnValue(false);
 
-    render(
-      <ItemPriceRow
-        price={mockPrice}
-        listId="list-1"
-        updatePriceAction={mockUpdateAction}
-        deletePriceAction={mockDeleteAction}
-      />
-    );
+    render(<ItemPriceRow price={mockPrice} {...sharedProps} />);
 
     fireEvent.click(screen.getByRole("button", { name: "Delete" }));
 

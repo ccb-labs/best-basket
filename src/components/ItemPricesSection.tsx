@@ -7,6 +7,9 @@
  * Prices are on products (shared across lists), so if "Milk" costs €0.89
  * at Lidl, every list with "Milk" shows the same price.
  *
+ * The "Best" price in the summary considers discounts — if a store has
+ * a coupon that makes its price lower, that's reflected here.
+ *
  * This component is placed below each ListItemCard in the list detail page.
  */
 "use client";
@@ -14,7 +17,11 @@
 import { useState } from "react";
 import { ItemPriceRow } from "@/components/ItemPriceRow";
 import { AddPriceForm } from "@/components/AddPriceForm";
-import type { Store, ItemPriceWithStore } from "@/lib/types";
+import {
+  calculateDiscountedPrice,
+  getApplicableDiscounts,
+} from "@/lib/discounts";
+import type { Store, ItemPriceWithStore, Discount } from "@/lib/types";
 import type { ActionResult } from "@/app/(protected)/actions";
 
 export function ItemPricesSection({
@@ -22,9 +29,13 @@ export function ItemPricesSection({
   listId,
   prices,
   stores,
+  discounts,
   addPriceAction,
   updatePriceAction,
   deletePriceAction,
+  addDiscountAction,
+  updateDiscountAction,
+  deleteDiscountAction,
 }: {
   /** The product these prices belong to */
   productId: string;
@@ -34,6 +45,8 @@ export function ItemPricesSection({
   prices: ItemPriceWithStore[];
   /** All of the user's stores */
   stores: Store[];
+  /** All discounts that could apply to these prices */
+  discounts: Discount[];
   /** Server Action to add a price */
   addPriceAction: (
     previousState: ActionResult,
@@ -49,16 +62,44 @@ export function ItemPricesSection({
     previousState: ActionResult,
     formData: FormData
   ) => Promise<ActionResult>;
+  /** Server Action to add a discount */
+  addDiscountAction: (
+    previousState: ActionResult,
+    formData: FormData
+  ) => Promise<ActionResult>;
+  /** Server Action to update a discount */
+  updateDiscountAction: (
+    previousState: ActionResult,
+    formData: FormData
+  ) => Promise<ActionResult>;
+  /** Server Action to delete a discount */
+  deleteDiscountAction: (
+    previousState: ActionResult,
+    formData: FormData
+  ) => Promise<ActionResult>;
 }) {
   const [isExpanded, setIsExpanded] = useState(false);
 
-  // Find the cheapest price to show in the summary
-  const cheapest =
-    prices.length > 0
-      ? prices.reduce((min, p) =>
-          Number(p.price) < Number(min.price) ? p : min
-        )
-      : null;
+  // Find the cheapest price considering discounts.
+  // We track both the cheapest price object and its discounted value
+  // in one pass to avoid recalculating after the reduce.
+  let cheapest: ItemPriceWithStore | null = null;
+  let cheapestDiscounted: number | null = null;
+
+  if (prices.length > 0) {
+    let minDiscounted = Infinity;
+    for (const p of prices) {
+      const d = calculateDiscountedPrice(
+        Number(p.price),
+        getApplicableDiscounts(p, discounts)
+      );
+      if (d < minDiscounted) {
+        minDiscounted = d;
+        cheapest = p;
+        cheapestDiscounted = d;
+      }
+    }
+  }
 
   // Sort prices by store name for consistent display
   const sortedPrices = [...prices].sort((a, b) =>
@@ -74,8 +115,8 @@ export function ItemPricesSection({
         className="flex w-full items-center justify-between py-1.5 text-left"
       >
         <span className="text-xs text-zinc-400">
-          {cheapest
-            ? `Best: €${Number(cheapest.price).toFixed(2)} at ${cheapest.stores.name}`
+          {cheapest && cheapestDiscounted !== null
+            ? `Best: €${cheapestDiscounted.toFixed(2)} at ${cheapest.stores.name}`
             : "No prices yet"}
         </span>
         <span className="text-xs text-zinc-300">{isExpanded ? "▲" : "▼"}</span>
@@ -92,8 +133,12 @@ export function ItemPricesSection({
                   key={price.id}
                   price={price}
                   listId={listId}
+                  discounts={discounts}
                   updatePriceAction={updatePriceAction}
                   deletePriceAction={deletePriceAction}
+                  addDiscountAction={addDiscountAction}
+                  updateDiscountAction={updateDiscountAction}
+                  deleteDiscountAction={deleteDiscountAction}
                 />
               ))}
             </div>

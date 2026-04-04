@@ -18,6 +18,8 @@ import { useActionState, useRef, useState, useEffect } from "react";
 import { SubmitButton } from "@/components/SubmitButton";
 import { CreateCategoryForm } from "@/components/CreateCategoryForm";
 import { createClient } from "@/lib/supabase/client";
+import { useVoiceInput } from "@/hooks/useVoiceInput";
+import { parsePortugueseInput } from "@/lib/voice-parser";
 import type { ActionResult } from "@/app/(protected)/actions";
 import type { Category, Product } from "@/lib/types";
 
@@ -47,10 +49,30 @@ export function AddItemForm({
   const formRef = useRef<HTMLFormElement>(null);
   const [showNewCategory, setShowNewCategory] = useState(false);
 
-  // ─── Autocomplete state ───
+  // ─── Form field state ───
+  // Name, quantity, and unit are all controlled so voice input can fill them.
   const [nameValue, setNameValue] = useState("");
+  const [quantityValue, setQuantityValue] = useState("1");
+  const [unitValue, setUnitValue] = useState("");
+
+  // ─── Autocomplete state ───
   const [suggestions, setSuggestions] = useState<Product[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
+
+  // ─── Voice input ───
+  // Uses the Web Speech API to convert speech to text (Portuguese).
+  // The browser handles all the heavy lifting — no external service needed.
+  const { isSupported: voiceSupported, isListening, startListening, stopListening } =
+    useVoiceInput({
+      lang: "pt-PT",
+      onResult: (transcript) => {
+        // Parse "2 espinafres" into { quantity: 2, name: "espinafres" }
+        const parsed = parsePortugueseInput(transcript);
+        setNameValue(parsed.name);
+        setQuantityValue(String(parsed.quantity));
+        setUnitValue(parsed.unit ?? "");
+      },
+    });
 
   // Debounced search: query products after the user stops typing for 300ms.
   // Both branches run inside setTimeout so setState is never called
@@ -88,6 +110,8 @@ export function AddItemForm({
       if (!result.error) {
         formRef.current?.reset();
         setNameValue("");
+        setQuantityValue("1");
+        setUnitValue("");
         setSuggestions([]);
       }
       return result;
@@ -100,25 +124,62 @@ export function AddItemForm({
       <form ref={formRef} action={formAction} className="flex flex-col gap-3">
         <input type="hidden" name="list_id" value={listId} />
 
-        {/* Item name with autocomplete suggestions */}
+        {/* Item name with autocomplete suggestions and voice input */}
         <div className="relative">
-          <input
-            type="text"
-            name="name"
-            placeholder="Item name..."
-            required
-            value={nameValue}
-            onChange={(e) => setNameValue(e.target.value)}
-            onFocus={() => {
-              if (suggestions.length > 0) setShowSuggestions(true);
-            }}
-            onBlur={() => {
-              // Small delay so click on suggestion registers before hiding
-              setTimeout(() => setShowSuggestions(false), 150);
-            }}
-            autoComplete="off"
-            className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm focus:border-zinc-500 focus:outline-none"
-          />
+          <div className="flex gap-2">
+            <input
+              type="text"
+              name="name"
+              placeholder="Item name..."
+              required
+              value={nameValue}
+              onChange={(e) => setNameValue(e.target.value)}
+              onFocus={() => {
+                if (suggestions.length > 0) setShowSuggestions(true);
+              }}
+              onBlur={() => {
+                // Small delay so click on suggestion registers before hiding
+                setTimeout(() => setShowSuggestions(false), 150);
+              }}
+              autoComplete="off"
+              className="flex-1 rounded-md border border-zinc-300 px-3 py-2 text-sm focus:border-zinc-500 focus:outline-none"
+            />
+
+            {/* Microphone button — only shown if the browser supports speech recognition.
+                Tapping it starts listening; tapping again (or waiting) stops it. */}
+            {voiceSupported && (
+              <button
+                type="button"
+                onClick={isListening ? stopListening : startListening}
+                aria-label={isListening ? "Stop listening" : "Voice input"}
+                className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-md border transition-colors ${
+                  isListening
+                    ? "border-red-300 bg-red-50 text-red-500"
+                    : "border-zinc-300 text-zinc-400 hover:bg-zinc-50 hover:text-zinc-600"
+                }`}
+              >
+                {isListening ? (
+                  /* Pulsing red dot while listening */
+                  <span className="h-3 w-3 rounded-full bg-red-500 animate-pulse" />
+                ) : (
+                  /* Microphone icon */
+                  <svg
+                    className="h-5 w-5"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={1.5}
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z"
+                    />
+                  </svg>
+                )}
+              </button>
+            )}
+          </div>
 
           {/* Suggestions dropdown */}
           {showSuggestions && suggestions.length > 0 && (
@@ -149,7 +210,8 @@ export function AddItemForm({
           <input
             type="number"
             name="quantity"
-            defaultValue={1}
+            value={quantityValue}
+            onChange={(e) => setQuantityValue(e.target.value)}
             min={0.01}
             step="any"
             className="w-20 rounded-md border border-zinc-300 px-3 py-2 text-sm focus:border-zinc-500 focus:outline-none"
@@ -157,6 +219,8 @@ export function AddItemForm({
           <input
             type="text"
             name="unit"
+            value={unitValue}
+            onChange={(e) => setUnitValue(e.target.value)}
             placeholder="kg, L, pack..."
             className="w-28 rounded-md border border-zinc-300 px-3 py-2 text-sm focus:border-zinc-500 focus:outline-none"
           />

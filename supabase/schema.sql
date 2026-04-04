@@ -16,10 +16,20 @@ create table categories (
 
 alter table categories enable row level security;
 
--- Users can see default categories (user_id is null) and their own
-create policy "Users can view default and own categories"
+-- Users can see default categories (user_id is null), their own,
+-- and categories belonging to users who shared a list with them
+create policy "Users can view default own and shared categories"
   on categories for select
-  using (user_id is null or user_id = auth.uid());
+  using (
+    user_id is null
+    or user_id = auth.uid()
+    or exists (
+      select 1 from list_shares ls
+      join shopping_lists sl on sl.id = ls.list_id
+      where ls.user_id = auth.uid()
+        and sl.user_id = categories.user_id
+    )
+  );
 
 create policy "Users can insert own categories"
   on categories for insert
@@ -62,9 +72,17 @@ create table shopping_lists (
 
 alter table shopping_lists enable row level security;
 
-create policy "Users can view own lists"
+-- Users can view their own lists AND lists shared with them
+create policy "Users can view own and shared lists"
   on shopping_lists for select
-  using (user_id = auth.uid());
+  using (
+    user_id = auth.uid()
+    or exists (
+      select 1 from list_shares
+      where list_shares.list_id = shopping_lists.id
+        and list_shares.user_id = auth.uid()
+    )
+  );
 
 create policy "Users can insert own lists"
   on shopping_lists for insert
@@ -95,13 +113,33 @@ create table products (
 
 alter table products enable row level security;
 
-create policy "Users can view own products"
+-- Users can view their own products AND products belonging to users
+-- who shared a list with them (so prices display correctly)
+create policy "Users can view own and shared products"
   on products for select
-  using (user_id = auth.uid());
+  using (
+    user_id = auth.uid()
+    or exists (
+      select 1 from list_shares ls
+      join shopping_lists sl on sl.id = ls.list_id
+      where ls.user_id = auth.uid()
+        and sl.user_id = products.user_id
+    )
+  );
 
-create policy "Users can insert own products"
+-- Users can create products in their own catalog OR in the catalog
+-- of users who shared a list with them (for adding items to shared lists)
+create policy "Users can insert own and shared products"
   on products for insert
-  with check (user_id = auth.uid());
+  with check (
+    user_id = auth.uid()
+    or exists (
+      select 1 from list_shares ls
+      join shopping_lists sl on sl.id = ls.list_id
+      where ls.user_id = auth.uid()
+        and sl.user_id = products.user_id
+    )
+  );
 
 create policy "Users can update own products"
   on products for update
@@ -131,44 +169,73 @@ create table list_items (
 
 alter table list_items enable row level security;
 
--- RLS for list_items checks that the parent shopping_list belongs to the user
-create policy "Users can view items in own lists"
+-- RLS for list_items checks that the parent shopping_list belongs to
+-- the user OR is shared with them
+create policy "Users can view items in own and shared lists"
   on list_items for select
   using (
     exists (
       select 1 from shopping_lists
       where shopping_lists.id = list_items.list_id
-        and shopping_lists.user_id = auth.uid()
+        and (
+          shopping_lists.user_id = auth.uid()
+          or exists (
+            select 1 from list_shares
+            where list_shares.list_id = shopping_lists.id
+              and list_shares.user_id = auth.uid()
+          )
+        )
     )
   );
 
-create policy "Users can insert items in own lists"
+create policy "Users can insert items in own and shared lists"
   on list_items for insert
   with check (
     exists (
       select 1 from shopping_lists
       where shopping_lists.id = list_items.list_id
-        and shopping_lists.user_id = auth.uid()
+        and (
+          shopping_lists.user_id = auth.uid()
+          or exists (
+            select 1 from list_shares
+            where list_shares.list_id = shopping_lists.id
+              and list_shares.user_id = auth.uid()
+          )
+        )
     )
   );
 
-create policy "Users can update items in own lists"
+create policy "Users can update items in own and shared lists"
   on list_items for update
   using (
     exists (
       select 1 from shopping_lists
       where shopping_lists.id = list_items.list_id
-        and shopping_lists.user_id = auth.uid()
+        and (
+          shopping_lists.user_id = auth.uid()
+          or exists (
+            select 1 from list_shares
+            where list_shares.list_id = shopping_lists.id
+              and list_shares.user_id = auth.uid()
+          )
+        )
     )
   );
 
-create policy "Users can delete items in own lists"
+create policy "Users can delete items in own and shared lists"
   on list_items for delete
   using (
     exists (
       select 1 from shopping_lists
       where shopping_lists.id = list_items.list_id
-        and shopping_lists.user_id = auth.uid()
+        and (
+          shopping_lists.user_id = auth.uid()
+          or exists (
+            select 1 from list_shares
+            where list_shares.list_id = shopping_lists.id
+              and list_shares.user_id = auth.uid()
+          )
+        )
     )
   );
 
@@ -184,9 +251,19 @@ create table stores (
 
 alter table stores enable row level security;
 
-create policy "Users can view own stores"
+-- Users can view their own stores AND stores belonging to users
+-- who shared a list with them (so store names appear in prices)
+create policy "Users can view own and shared stores"
   on stores for select
-  using (user_id = auth.uid());
+  using (
+    user_id = auth.uid()
+    or exists (
+      select 1 from list_shares ls
+      join shopping_lists sl on sl.id = ls.list_id
+      where ls.user_id = auth.uid()
+        and sl.user_id = stores.user_id
+    )
+  );
 
 create policy "Users can insert own stores"
   on stores for insert
@@ -217,44 +294,76 @@ create table item_prices (
 
 alter table item_prices enable row level security;
 
--- RLS checks ownership through products.user_id
-create policy "Users can view prices for own products"
+-- RLS checks ownership through products.user_id, including shared access
+create policy "Users can view prices for own and shared products"
   on item_prices for select
   using (
     exists (
       select 1 from products
       where products.id = item_prices.product_id
-        and products.user_id = auth.uid()
+        and (
+          products.user_id = auth.uid()
+          or exists (
+            select 1 from list_shares ls
+            join shopping_lists sl on sl.id = ls.list_id
+            where ls.user_id = auth.uid()
+              and sl.user_id = products.user_id
+          )
+        )
     )
   );
 
-create policy "Users can insert prices for own products"
+create policy "Users can insert prices for own and shared products"
   on item_prices for insert
   with check (
     exists (
       select 1 from products
       where products.id = item_prices.product_id
-        and products.user_id = auth.uid()
+        and (
+          products.user_id = auth.uid()
+          or exists (
+            select 1 from list_shares ls
+            join shopping_lists sl on sl.id = ls.list_id
+            where ls.user_id = auth.uid()
+              and sl.user_id = products.user_id
+          )
+        )
     )
   );
 
-create policy "Users can update prices for own products"
+create policy "Users can update prices for own and shared products"
   on item_prices for update
   using (
     exists (
       select 1 from products
       where products.id = item_prices.product_id
-        and products.user_id = auth.uid()
+        and (
+          products.user_id = auth.uid()
+          or exists (
+            select 1 from list_shares ls
+            join shopping_lists sl on sl.id = ls.list_id
+            where ls.user_id = auth.uid()
+              and sl.user_id = products.user_id
+          )
+        )
     )
   );
 
-create policy "Users can delete prices for own products"
+create policy "Users can delete prices for own and shared products"
   on item_prices for delete
   using (
     exists (
       select 1 from products
       where products.id = item_prices.product_id
-        and products.user_id = auth.uid()
+        and (
+          products.user_id = auth.uid()
+          or exists (
+            select 1 from list_shares ls
+            join shopping_lists sl on sl.id = ls.list_id
+            where ls.user_id = auth.uid()
+              and sl.user_id = products.user_id
+          )
+        )
     )
   );
 
@@ -276,9 +385,19 @@ create table discounts (
 
 alter table discounts enable row level security;
 
-create policy "Users can view own discounts"
+-- Users can view their own discounts AND discounts belonging to users
+-- who shared a list with them (needed for price comparison)
+create policy "Users can view own and shared discounts"
   on discounts for select
-  using (user_id = auth.uid());
+  using (
+    user_id = auth.uid()
+    or exists (
+      select 1 from list_shares ls
+      join shopping_lists sl on sl.id = ls.list_id
+      where ls.user_id = auth.uid()
+        and sl.user_id = discounts.user_id
+    )
+  );
 
 create policy "Users can insert own discounts"
   on discounts for insert
@@ -307,36 +426,90 @@ create table list_shares (
 
 alter table list_shares enable row level security;
 
--- Both the list owner and the shared user can see the share
+-- Both the list owner and the shared user can see the share.
+-- Uses is_list_owner() function instead of a direct subquery on
+-- shopping_lists to avoid infinite RLS recursion (shopping_lists
+-- RLS references list_shares, so list_shares can't reference back).
 create policy "List owners and shared users can view shares"
   on list_shares for select
   using (
     user_id = auth.uid()
-    or exists (
-      select 1 from shopping_lists
-      where shopping_lists.id = list_shares.list_id
-        and shopping_lists.user_id = auth.uid()
-    )
+    or is_list_owner(list_id)
   );
 
 -- Only the list owner can share the list with others
 create policy "List owners can insert shares"
   on list_shares for insert
-  with check (
-    exists (
-      select 1 from shopping_lists
-      where shopping_lists.id = list_shares.list_id
-        and shopping_lists.user_id = auth.uid()
-    )
-  );
+  with check (is_list_owner(list_id));
 
 -- Only the list owner can remove shares
 create policy "List owners can delete shares"
   on list_shares for delete
-  using (
-    exists (
-      select 1 from shopping_lists
-      where shopping_lists.id = list_shares.list_id
-        and shopping_lists.user_id = auth.uid()
-    )
+  using (is_list_owner(list_id));
+
+
+-- ============================================
+-- HELPER FUNCTIONS
+-- These use SECURITY DEFINER to run with elevated permissions.
+-- Used for accessing auth.users (not directly queryable) and
+-- for breaking RLS circular references.
+-- ============================================
+
+-- Check if the current user owns a specific list.
+-- Used in list_shares RLS to avoid infinite recursion
+-- (shopping_lists RLS → list_shares → is_list_owner bypasses RLS).
+create or replace function is_list_owner(p_list_id uuid)
+returns boolean
+language sql
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1 from shopping_lists
+    where id = p_list_id and user_id = auth.uid()
   );
+$$;
+
+-- Look up a user's ID by their email address (for sharing)
+create or replace function get_user_id_by_email(lookup_email text)
+returns uuid
+language sql
+security definer
+set search_path = public
+as $$
+  select id from auth.users where email = lookup_email;
+$$;
+
+-- Get all lists shared with the current user, including the owner's email
+create or replace function get_shared_lists()
+returns table(id uuid, name text, created_at timestamptz, owner_email text)
+language sql
+security definer
+set search_path = public
+as $$
+  select sl.id, sl.name, sl.created_at, u.email as owner_email
+  from list_shares ls
+  join shopping_lists sl on sl.id = ls.list_id
+  join auth.users u on u.id = sl.user_id
+  where ls.user_id = auth.uid()
+    and sl.is_template = false
+  order by sl.created_at desc;
+$$;
+
+-- Get the list of users a specific list is shared with (owner only)
+create or replace function get_list_shares_with_email(p_list_id uuid)
+returns table(id uuid, user_id uuid, email text)
+language sql
+security definer
+set search_path = public
+as $$
+  select ls.id, ls.user_id, u.email
+  from list_shares ls
+  join auth.users u on u.id = ls.user_id
+  where ls.list_id = p_list_id
+    and exists (
+      select 1 from shopping_lists sl
+      where sl.id = p_list_id
+        and sl.user_id = auth.uid()
+    );
+$$;

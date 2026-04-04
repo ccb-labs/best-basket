@@ -23,6 +23,26 @@ export type ActionResult = {
 };
 
 /**
+ * Get the user_id of the list owner.
+ *
+ * When a shared user adds or updates items in a shared list, we need
+ * to create products in the list OWNER's catalog (not the shared user's).
+ * This keeps prices consistent — all collaborators see the same products
+ * with the same prices.
+ */
+async function getListOwnerId(
+  supabase: SupabaseClient,
+  listId: string
+): Promise<string | null> {
+  const { data } = await supabase
+    .from("shopping_lists")
+    .select("user_id")
+    .eq("id", listId)
+    .single();
+  return data?.user_id ?? null;
+}
+
+/**
  * Find an existing product by name (case-insensitive) or create a new one.
  *
  * Products are shared across lists — if "Milk" already exists as a product,
@@ -215,9 +235,17 @@ export async function addItem(
     return { error: "You must be logged in." };
   }
 
-  // Find or create a product with this name.
+  // Use the list owner's user_id for product lookup.
+  // If this is a shared list, the product needs to be in the owner's catalog
+  // so prices stay consistent for all collaborators.
+  const ownerId = await getListOwnerId(supabase, listId);
+  if (!ownerId) {
+    return { error: "List not found." };
+  }
+
+  // Find or create a product with this name in the owner's catalog.
   // ilike does a case-insensitive match so "Milk" and "milk" are the same product.
-  const productId = await findOrCreateProduct(supabase, user.id, name.trim());
+  const productId = await findOrCreateProduct(supabase, ownerId, name.trim());
   if (!productId) {
     return { error: "Could not create product. Please try again." };
   }
@@ -293,11 +321,17 @@ export async function updateItem(
     return { error: "You must be logged in." };
   }
 
-  // Always find/create a product for the current name.
-  // If the user renamed the item, this links it to the correct product.
-  const productId = await findOrCreateProduct(supabase, user.id, name.trim());
+  // Use the list owner's catalog for consistent product/price data.
+  const ownerId = await getListOwnerId(supabase, listId);
+  if (!ownerId) {
+    return { error: "List not found." };
+  }
 
-  // RLS ensures users can only update items in their own lists
+  // Always find/create a product for the current name in the owner's catalog.
+  // If the user renamed the item, this links it to the correct product.
+  const productId = await findOrCreateProduct(supabase, ownerId, name.trim());
+
+  // RLS ensures users can only update items in their own or shared lists
   const { error } = await supabase
     .from("list_items")
     .update({
@@ -1045,5 +1079,106 @@ export async function deleteDiscount(
   if (listId) {
     revalidatePath(`/lists/${listId}`);
   }
+  return { error: null };
+}
+
+// ─── List Sharing Actions ────────────────────────────────────────
+
+/**
+ * Share a shopping list with another user by email.
+ *
+ * Looks up the recipient's user ID using the get_user_id_by_email
+ * database function, then inserts a row into list_shares.
+ * RLS ensures only the list owner can share.
+ */
+export async function shareList(
+  previousState: ActionResult,
+  formData: FormData
+): Promise<ActionResult> {
+  const listId = formData.get("list_id") as string;
+  const email = formData.get("email") as string;
+
+  if (!email || !email.includes("@")) {
+    return { error: "Please enter a valid email address." };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { error: "You must be logged in." };
+  }
+
+  // Can't share with yourself
+  if (email.toLowerCase() === user.email?.toLowerCase()) {
+    return { error: "You can't share a list with yourself." };
+  }
+
+  // Look up the recipient's user ID by email.
+  // This calls a SECURITY DEFINER function that can access auth.users.
+  const { data: recipientId, error: lookupError } = await supabase.rpc(
+    "get_user_id_by_email",
+    { lookup_email: email.toLowerCase() }
+  );
+
+  if (lookupError || !recipientId) {
+    return { error: "No user found with that email address." };
+  }
+
+  // Insert the share — RLS ensures only the list owner can do this
+  const { error } = await supabase
+    .from("list_shares")
+    .insert({ list_id: listId, user_id: recipientId });
+
+  if (error) {
+    // Unique constraint violation means already shared
+    if (error.code === "23505") {
+      return { error: "This list is already shared with that user." };
+    }
+    return { error: "Could not share list. Please try again." };
+  }
+
+  revalidatePath(`/lists/${listId}`);
+  return { error: null };
+}
+
+/**
+ * Remove a user's access to a shared shopping list.
+ *
+ * RLS ensures only the list owner can remove shares.
+ */
+export async function unshareList(
+  previousState: ActionResult,
+  formData: FormData
+): Promise<ActionResult> {
+  const shareId = formData.get("share_id") as string;
+  const listId = formData.get("list_id") as string;
+
+  if (!shareId) {
+    return { error: "Missing share ID." };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { error: "You must be logged in." };
+  }
+
+  // RLS ensures only the list owner can delete shares
+  const { error } = await supabase
+    .from("list_shares")
+    .delete()
+    .eq("id", shareId);
+
+  if (error) {
+    return { error: "Could not remove share. Please try again." };
+  }
+
+  revalidatePath(`/lists/${listId}`);
   return { error: null };
 }

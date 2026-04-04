@@ -7,8 +7,9 @@
  */
 "use client";
 
-import { useState, useActionState } from "react";
+import { useState, useActionState, useRef } from "react";
 import { SubmitButton } from "@/components/SubmitButton";
+import { useConfirm } from "@/components/ConfirmDialog";
 import { formatDiscountLabel } from "@/lib/discounts";
 import type { Discount } from "@/lib/types";
 import type { ActionResult } from "@/app/(protected)/actions";
@@ -35,6 +36,8 @@ export function StoreDiscountRow({
   ) => Promise<ActionResult>;
 }) {
   const [isEditing, setIsEditing] = useState(false);
+  const deleteFormRef = useRef<HTMLFormElement>(null);
+  const { requestConfirm, confirmDialog } = useConfirm();
 
   const [updateState, updateFormAction] = useActionState(
     async (previousState: ActionResult, formData: FormData) => {
@@ -123,20 +126,17 @@ export function StoreDiscountRow({
               Edit
             </button>
 
-            <form
-              className="flex"
-              action={deleteFormAction}
-              onSubmit={(e) => {
-                const confirmed = window.confirm("Delete this discount?");
-                if (!confirmed) {
-                  e.preventDefault();
-                }
-              }}
-            >
+            <form ref={deleteFormRef} className="flex" action={deleteFormAction}>
               <input type="hidden" name="id" value={discount.id} />
               {listId && <input type="hidden" name="list_id" value={listId} />}
               <button
-                type="submit"
+                type="button"
+                onClick={() =>
+                  requestConfirm({
+                    message: "Delete this discount?",
+                    onConfirm: () => deleteFormRef.current?.requestSubmit(),
+                  })
+                }
                 className="rounded-md px-1.5 py-0.5 text-xs text-red-500 hover:bg-red-50"
               >
                 Delete
@@ -147,6 +147,8 @@ export function StoreDiscountRow({
       )}
 
       {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
+
+      {confirmDialog}
     </div>
   );
 }

@@ -178,14 +178,13 @@ test.describe.serial("List items CRUD", () => {
     await page.goto("/");
     await page.getByRole("link", { name: listName }).click();
 
-    // Handle the confirm dialog
-    page.on("dialog", (dialog) => dialog.accept());
-
     // Find the card with "Whole Wheat Bread" and delete it
     const itemCard = page
       .locator('[class*="border-zinc-200"]')
       .filter({ hasText: "Whole Wheat Bread" });
     await itemCard.getByRole("button", { name: "Delete" }).click();
+    // Confirm the deletion in the custom confirm dialog
+    await page.getByRole("alertdialog").getByRole("button", { name: "Delete" }).click();
 
     // Whole Wheat Bread should be gone, Milk should remain
     await expect(page.getByText("Whole Wheat Bread")).not.toBeVisible();
@@ -229,14 +228,13 @@ test.describe.serial("List items CRUD", () => {
   test("cleans up by deleting the test list", async ({ page }) => {
     await page.goto("/");
 
-    // Handle the confirm dialog
-    page.on("dialog", (dialog) => dialog.accept());
-
     // Find the card with our test list and delete it
     const listCard = page
       .locator('[class*="border-zinc-200"]')
       .filter({ hasText: listName });
     await listCard.getByRole("button", { name: "Delete" }).click();
+    // Confirm the deletion in the custom confirm dialog
+    await page.getByRole("alertdialog").getByRole("button", { name: "Delete" }).click();
 
     // The list should be gone
     await expect(page.getByText(listName)).not.toBeVisible();

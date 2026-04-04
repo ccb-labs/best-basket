@@ -17,20 +17,17 @@ test.describe.serial("Stores CRUD", () => {
   const editedName = `Lidl Portugal ${Date.now()}`;
 
   test("shows empty state when no stores exist", async ({ page }) => {
-    await page.goto("/stores");
-
-    // Clean up any leftover stores from previous test runs
-    page.on("dialog", (dialog) => dialog.accept());
-
-    while (
-      await page
-        .getByRole("button", { name: "Delete" })
-        .first()
-        .isVisible()
-        .catch(() => false)
-    ) {
-      await page.getByRole("button", { name: "Delete" }).first().click();
-      await page.waitForTimeout(500);
+    // Clean up any leftover stores from previous test runs.
+    // We reload the page after each deletion to get a fresh server state.
+    while (true) {
+      await page.goto("/stores");
+      await page.waitForSelector("h2");
+      const deleteBtn = page.getByRole("button", { name: "Delete" }).first();
+      if (!(await deleteBtn.isVisible({ timeout: 2_000 }).catch(() => false))) break;
+      await deleteBtn.click();
+      // Confirm the deletion in the custom confirm dialog
+      await page.getByRole("alertdialog").getByRole("button", { name: "Delete" }).click();
+      await page.waitForTimeout(1_000);
     }
 
     await expect(page.getByText("No stores yet")).toBeVisible();
@@ -104,12 +101,12 @@ test.describe.serial("Stores CRUD", () => {
   test("deletes a store", async ({ page }) => {
     await page.goto("/stores");
 
-    page.on("dialog", (dialog) => dialog.accept());
-
     const storeCard = page
       .locator('[class*="border-zinc-200"]')
       .filter({ hasText: editedName });
     await storeCard.getByRole("button", { name: "Delete" }).click();
+    // Confirm the deletion in the custom confirm dialog
+    await page.getByRole("alertdialog").getByRole("button", { name: "Delete" }).click();
 
     await expect(page.getByText(editedName)).not.toBeVisible();
     await expect(page.getByText(storeName2)).toBeVisible();
@@ -118,12 +115,12 @@ test.describe.serial("Stores CRUD", () => {
   test("deleting the last store shows empty state", async ({ page }) => {
     await page.goto("/stores");
 
-    page.on("dialog", (dialog) => dialog.accept());
-
     const storeCard = page
       .locator('[class*="border-zinc-200"]')
       .filter({ hasText: storeName2 });
     await storeCard.getByRole("button", { name: "Delete" }).click();
+    // Confirm the deletion in the custom confirm dialog
+    await page.getByRole("alertdialog").getByRole("button", { name: "Delete" }).click();
 
     await expect(page.getByText("No stores yet")).toBeVisible();
   });

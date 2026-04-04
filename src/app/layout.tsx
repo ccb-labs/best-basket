@@ -13,8 +13,12 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Best Basket",
-  description: "Shopping list and price comparison app",
+  title: {
+    default: "Best Basket",
+    template: "%s | Best Basket",
+  },
+  description:
+    "Create shopping lists, compare prices across stores, and find the cheapest way to shop.",
 };
 
 export default function RootLayout({

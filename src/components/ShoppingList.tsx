@@ -15,12 +15,15 @@
  */
 "use client";
 
-import { useOptimistic, useTransition, useState } from "react";
+import { useOptimistic, useTransition, useState, useActionState, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { ShoppingProgressBar } from "@/components/ShoppingProgressBar";
 import { ShoppingItemCard } from "@/components/ShoppingItemCard";
+import { useConfirm } from "@/components/ConfirmDialog";
 import { groupItemsByCategory } from "@/lib/list-helpers";
 import type { BestDealInfo } from "@/lib/types";
 import type { ListItemWithCategory } from "@/lib/types";
+import type { ActionResult } from "@/app/(protected)/actions";
 
 export function ShoppingList({
   listId,
@@ -28,6 +31,7 @@ export function ShoppingList({
   bestDeals,
   toggleAction,
   uncheckAllAction,
+  deleteAction,
 }: {
   /** The shopping list ID */
   listId: string;
@@ -43,9 +47,30 @@ export function ShoppingList({
   ) => Promise<{ error: string | null }>;
   /** Server Action to uncheck all items */
   uncheckAllAction: (listId: string) => Promise<{ error: string | null }>;
+  /** Server Action to delete the list */
+  deleteAction: (
+    previousState: ActionResult,
+    formData: FormData
+  ) => Promise<ActionResult>;
 }) {
+  const router = useRouter();
   const [showPrices, setShowPrices] = useState(true);
   const [, startTransition] = useTransition();
+  const deleteFormRef = useRef<HTMLFormElement>(null);
+  const { requestConfirm, confirmDialog } = useConfirm();
+
+  // Delete list action — redirects to home after successful deletion
+  const [deleteState, deleteFormAction] = useActionState(
+    async (previousState: ActionResult, formData: FormData) => {
+      const result = await deleteAction(previousState, formData);
+      if (!result.error) {
+        router.push("/");
+        router.refresh();
+      }
+      return result;
+    },
+    { error: null }
+  );
 
   // useOptimistic gives us a way to show the checked state immediately
   // while the server action runs in the background. The first argument
@@ -77,13 +102,15 @@ export function ShoppingList({
   }
 
   function handleUncheckAll() {
-    const confirmed = window.confirm(
-      "Uncheck all items? This will reset your shopping progress."
-    );
-    if (!confirmed) return;
-
-    startTransition(() => {
-      uncheckAllAction(listId);
+    requestConfirm({
+      message: "Uncheck all items? This will reset your shopping progress.",
+      confirmLabel: "Uncheck all",
+      destructive: false,
+      onConfirm: () => {
+        startTransition(() => {
+          uncheckAllAction(listId);
+        });
+      },
     });
   }
 
@@ -163,16 +190,42 @@ export function ShoppingList({
         </div>
       )}
 
-      {/* Uncheck all button — only shown if there are checked items */}
-      {doneItems.length > 0 && (
-        <button
-          type="button"
-          onClick={handleUncheckAll}
-          className="mt-2 self-center rounded-md border border-zinc-300 px-4 py-2 text-sm text-zinc-600 hover:bg-zinc-100"
-        >
-          Uncheck all
-        </button>
+      {/* Action buttons — Uncheck all (when items are checked) + Delete list */}
+      <div className="mt-2 flex items-center justify-center gap-2">
+        {doneItems.length > 0 && (
+          <button
+            type="button"
+            onClick={handleUncheckAll}
+            className="rounded-md border border-zinc-300 px-4 py-2 text-sm text-zinc-600 hover:bg-zinc-100"
+          >
+            Uncheck all
+          </button>
+        )}
+
+        <form ref={deleteFormRef} action={deleteFormAction}>
+          <input type="hidden" name="id" value={listId} />
+          <button
+            type="button"
+            onClick={() =>
+              requestConfirm({
+                message: "Delete this list? This cannot be undone.",
+                onConfirm: () => deleteFormRef.current?.requestSubmit(),
+              })
+            }
+            className="rounded-md border border-red-200 px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+          >
+            Delete list
+          </button>
+        </form>
+      </div>
+
+      {deleteState.error && (
+        <p className="mt-2 rounded-md bg-red-50 p-3 text-center text-sm text-red-600">
+          {deleteState.error}
+        </p>
       )}
+
+      {confirmDialog}
     </div>
   );
 }

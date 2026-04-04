@@ -116,12 +116,16 @@ test.describe.serial("Item prices CRUD", () => {
     await priceInput.clear();
     await priceInput.fill("1.25");
 
-    await Promise.all([
-      page.waitForResponse(
-        (resp) => resp.request().method() === "POST" && resp.ok()
-      ),
-      page.getByRole("button", { name: "Save" }).click(),
-    ]);
+    // Submit by pressing Enter in the price input (more reliable than
+    // clicking Save, which can be obscured by other elements)
+    await priceInput.press("Enter");
+
+    // Wait for the edit form to close (price input disappears after success).
+    // We check for the price input, not the Save button, because "Save as
+    // Template" also matches getByRole("button", { name: "Save" }).
+    await expect(page.locator('input[name="price"]')).not.toBeVisible({
+      timeout: 10_000,
+    });
 
     // Reload to confirm the change persisted
     await page.reload();
@@ -137,9 +141,6 @@ test.describe.serial("Item prices CRUD", () => {
     // Expand the prices section
     await page.getByText(`Best: €1.05 at ${store2}`).click();
 
-    // Handle the confirm dialog
-    page.on("dialog", (dialog) => dialog.accept());
-
     // Delete the Continente price — find the edit button for that specific
     // price, go up to its parent container, and click the Delete button
     // next to it. This avoids accidentally hitting the item's Delete button.
@@ -148,11 +149,13 @@ test.describe.serial("Item prices CRUD", () => {
     });
     const priceActionRow = editPriceButton.locator("..");
 
+    // Click Delete to open the confirm dialog, then confirm
+    await priceActionRow.getByRole("button", { name: "Delete" }).click();
     await Promise.all([
       page.waitForResponse(
         (resp) => resp.request().method() === "POST" && resp.ok()
       ),
-      priceActionRow.getByRole("button", { name: "Delete" }).click(),
+      page.getByRole("alertdialog").getByRole("button", { name: "Delete" }).click(),
     ]);
 
     // Reload to confirm the deletion persisted
@@ -165,12 +168,12 @@ test.describe.serial("Item prices CRUD", () => {
   test("cleans up test data", async ({ page }) => {
     // Delete the test list (cascades to items and prices)
     await page.goto("/");
-    page.on("dialog", (dialog) => dialog.accept());
 
     const listCard = page
       .locator('[class*="border-zinc-200"]')
       .filter({ hasText: listName });
     await listCard.getByRole("button", { name: "Delete" }).click();
+    await page.getByRole("alertdialog").getByRole("button", { name: "Delete" }).click();
     await expect(page.getByText(listName)).not.toBeVisible();
 
     // Delete the test stores
@@ -182,6 +185,7 @@ test.describe.serial("Item prices CRUD", () => {
       .filter({ hasText: store1 });
     if (await store1Card.isVisible().catch(() => false)) {
       await store1Card.getByRole("button", { name: "Delete" }).click();
+      await page.getByRole("alertdialog").getByRole("button", { name: "Delete" }).click();
     }
 
     // Delete second store
@@ -190,6 +194,7 @@ test.describe.serial("Item prices CRUD", () => {
       .filter({ hasText: store2 });
     if (await store2Card.isVisible().catch(() => false)) {
       await store2Card.getByRole("button", { name: "Delete" }).click();
+      await page.getByRole("alertdialog").getByRole("button", { name: "Delete" }).click();
     }
   });
 });

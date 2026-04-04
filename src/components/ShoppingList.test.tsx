@@ -3,9 +3,10 @@ import { ShoppingList } from "./ShoppingList";
 import type { ListItemWithCategory } from "@/lib/types";
 import type { BestDealInfo } from "@/lib/types";
 
-// Mock window.confirm
-const mockConfirm = jest.fn();
-window.confirm = mockConfirm;
+// Mock Next.js router (needed for the delete action redirect)
+jest.mock("next/navigation", () => ({
+  useRouter: () => ({ push: jest.fn(), refresh: jest.fn() }),
+}));
 
 const mockItems: ListItemWithCategory[] = [
   {
@@ -50,6 +51,7 @@ const mockBestDeals: Record<string, BestDealInfo> = {
 
 const mockToggleAction = jest.fn().mockResolvedValue({ error: null });
 const mockUncheckAllAction = jest.fn().mockResolvedValue({ error: null });
+const mockDeleteAction = jest.fn().mockResolvedValue({ error: null });
 
 describe("ShoppingList", () => {
   beforeEach(() => {
@@ -64,6 +66,7 @@ describe("ShoppingList", () => {
         bestDeals={mockBestDeals}
         toggleAction={mockToggleAction}
         uncheckAllAction={mockUncheckAllAction}
+        deleteAction={mockDeleteAction}
       />
     );
 
@@ -79,6 +82,7 @@ describe("ShoppingList", () => {
         bestDeals={mockBestDeals}
         toggleAction={mockToggleAction}
         uncheckAllAction={mockUncheckAllAction}
+        deleteAction={mockDeleteAction}
       />
     );
 
@@ -95,6 +99,7 @@ describe("ShoppingList", () => {
         bestDeals={mockBestDeals}
         toggleAction={mockToggleAction}
         uncheckAllAction={mockUncheckAllAction}
+        deleteAction={mockDeleteAction}
       />
     );
 
@@ -112,6 +117,7 @@ describe("ShoppingList", () => {
         bestDeals={mockBestDeals}
         toggleAction={mockToggleAction}
         uncheckAllAction={mockUncheckAllAction}
+        deleteAction={mockDeleteAction}
       />
     );
 
@@ -133,6 +139,7 @@ describe("ShoppingList", () => {
         bestDeals={mockBestDeals}
         toggleAction={mockToggleAction}
         uncheckAllAction={mockUncheckAllAction}
+        deleteAction={mockDeleteAction}
       />
     );
 
@@ -142,8 +149,6 @@ describe("ShoppingList", () => {
   });
 
   it("shows confirm dialog when Uncheck all is clicked", () => {
-    mockConfirm.mockReturnValue(false);
-
     render(
       <ShoppingList
         listId="list-1"
@@ -151,14 +156,19 @@ describe("ShoppingList", () => {
         bestDeals={mockBestDeals}
         toggleAction={mockToggleAction}
         uncheckAllAction={mockUncheckAllAction}
+        deleteAction={mockDeleteAction}
       />
     );
 
     fireEvent.click(screen.getByRole("button", { name: "Uncheck all" }));
 
-    expect(mockConfirm).toHaveBeenCalledWith(
-      "Uncheck all items? This will reset your shopping progress."
-    );
+    // The custom confirm dialog should appear with the correct message
+    expect(screen.getByRole("alertdialog")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Uncheck all items? This will reset your shopping progress."
+      )
+    ).toBeInTheDocument();
   });
 
   it("shows price toggle when there are best deals", () => {
@@ -169,6 +179,7 @@ describe("ShoppingList", () => {
         bestDeals={mockBestDeals}
         toggleAction={mockToggleAction}
         uncheckAllAction={mockUncheckAllAction}
+        deleteAction={mockDeleteAction}
       />
     );
 
@@ -185,6 +196,7 @@ describe("ShoppingList", () => {
         bestDeals={{}}
         toggleAction={mockToggleAction}
         uncheckAllAction={mockUncheckAllAction}
+        deleteAction={mockDeleteAction}
       />
     );
 
@@ -204,6 +216,7 @@ describe("ShoppingList", () => {
         bestDeals={mockBestDeals}
         toggleAction={mockToggleAction}
         uncheckAllAction={mockUncheckAllAction}
+        deleteAction={mockDeleteAction}
       />
     );
 

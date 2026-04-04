@@ -25,23 +25,17 @@ test.describe.serial("Shopping list CRUD", () => {
   const editedName = `Weekend Groceries ${Date.now()}`;
 
   test("shows empty state when no lists exist", async ({ page }) => {
-    await page.goto("/");
-
     // Clean up any leftover lists from previous test runs.
-    // We accept all confirmation dialogs automatically.
-    page.on("dialog", (dialog) => dialog.accept());
-
-    // Keep clicking "Delete" buttons until none remain
-    while (
-      await page
-        .getByRole("button", { name: "Delete" })
-        .first()
-        .isVisible()
-        .catch(() => false)
-    ) {
-      await page.getByRole("button", { name: "Delete" }).first().click();
-      // Wait a moment for the page to update after deletion
-      await page.waitForTimeout(500);
+    // We reload the page after each deletion to get a fresh server state.
+    while (true) {
+      await page.goto("/");
+      await page.waitForSelector("h2");
+      const deleteBtn = page.getByRole("button", { name: "Delete" }).first();
+      if (!(await deleteBtn.isVisible({ timeout: 2_000 }).catch(() => false))) break;
+      await deleteBtn.click();
+      // Confirm the deletion in the custom confirm dialog
+      await page.getByRole("alertdialog").getByRole("button", { name: "Delete" }).click();
+      await page.waitForTimeout(1_000);
     }
 
     // Now the empty state should be visible
@@ -169,16 +163,14 @@ test.describe.serial("Shopping list CRUD", () => {
   test("deletes a shopping list", async ({ page }) => {
     await page.goto("/");
 
-    // Set up the dialog handler BEFORE clicking delete.
-    // window.confirm() creates a browser dialog that Playwright needs
-    // to handle — otherwise the test hangs waiting for user input.
-    page.on("dialog", (dialog) => dialog.accept());
-
     // Find the card that contains listName2 and click its Delete button
     const listCard = page
       .locator('[class*="border-zinc-200"]')
       .filter({ hasText: listName2 });
     await listCard.getByRole("button", { name: "Delete" }).click();
+
+    // Confirm the deletion in the custom confirm dialog
+    await page.getByRole("alertdialog").getByRole("button", { name: "Delete" }).click();
 
     // listName2 should be gone, but editedName should still be there
     await expect(page.getByText(listName2)).not.toBeVisible();
@@ -188,14 +180,14 @@ test.describe.serial("Shopping list CRUD", () => {
   test("deleting the last list shows empty state", async ({ page }) => {
     await page.goto("/");
 
-    // Handle the confirm dialog
-    page.on("dialog", (dialog) => dialog.accept());
-
     // Delete the remaining list
     const listCard = page
       .locator('[class*="border-zinc-200"]')
       .filter({ hasText: editedName });
     await listCard.getByRole("button", { name: "Delete" }).click();
+
+    // Confirm the deletion in the custom confirm dialog
+    await page.getByRole("alertdialog").getByRole("button", { name: "Delete" }).click();
 
     // Empty state should appear again
     await expect(page.getByText("No shopping lists yet")).toBeVisible();

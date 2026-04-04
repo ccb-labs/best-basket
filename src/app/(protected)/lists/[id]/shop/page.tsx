@@ -4,7 +4,11 @@ import { fetchListPageData } from "@/lib/list-data";
 import { calculateStoreTotals, calculateSmartSplit } from "@/lib/comparison";
 import { ShoppingList } from "@/components/ShoppingList";
 import type { BestDealInfo } from "@/lib/types";
-import { toggleItemChecked, uncheckAllItems } from "@/app/(protected)/actions";
+import {
+  toggleItemChecked,
+  uncheckAllItems,
+  deleteList,
+} from "@/app/(protected)/actions";
 
 /**
  * Shopping mode page — a streamlined view for checking off items
@@ -92,6 +96,7 @@ export default async function ShopPage({
             bestDeals={bestDeals}
             toggleAction={toggleItemChecked}
             uncheckAllAction={uncheckAllItems}
+            deleteAction={deleteList}
           />
         </div>
       )}

@@ -9,8 +9,9 @@
  */
 "use client";
 
-import { useState, useActionState } from "react";
+import { useState, useActionState, useRef } from "react";
 import { SubmitButton } from "@/components/SubmitButton";
+import { useConfirm } from "@/components/ConfirmDialog";
 import { StoreDiscountRow } from "@/components/StoreDiscountRow";
 import { AddDiscountForm } from "@/components/AddDiscountForm";
 import {
@@ -65,6 +66,8 @@ export function ItemPriceRow({
 }) {
   const [isEditing, setIsEditing] = useState(false);
   const [showAddDiscount, setShowAddDiscount] = useState(false);
+  const deleteFormRef = useRef<HTMLFormElement>(null);
+  const { requestConfirm, confirmDialog } = useConfirm();
 
   const [updateState, updateFormAction] = useActionState(
     async (previousState: ActionResult, formData: FormData) => {
@@ -169,22 +172,17 @@ export function ItemPriceRow({
                 Edit
               </button>
 
-              <form
-                className="flex"
-                action={deleteFormAction}
-                onSubmit={(e) => {
-                  const confirmed = window.confirm(
-                    `Delete price at ${price.stores.name}?`
-                  );
-                  if (!confirmed) {
-                    e.preventDefault();
-                  }
-                }}
-              >
+              <form ref={deleteFormRef} className="flex" action={deleteFormAction}>
                 <input type="hidden" name="id" value={price.id} />
                 <input type="hidden" name="list_id" value={listId} />
                 <button
-                  type="submit"
+                  type="button"
+                  onClick={() =>
+                    requestConfirm({
+                      message: `Delete price at ${price.stores.name}?`,
+                      onConfirm: () => deleteFormRef.current?.requestSubmit(),
+                    })
+                  }
                   className="rounded-md px-1.5 py-0.5 text-xs text-red-500 hover:bg-red-50"
                 >
                   Delete
@@ -238,6 +236,8 @@ export function ItemPriceRow({
       )}
 
       {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
+
+      {confirmDialog}
     </div>
   );
 }

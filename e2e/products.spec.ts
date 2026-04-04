@@ -122,12 +122,12 @@ test.describe.serial("Products management", () => {
   test("deletes a product", async ({ page }) => {
     await page.goto("/products");
 
-    page.on("dialog", (dialog) => dialog.accept());
-
     const productCard = page
       .locator('[class*="border-zinc-200"]')
       .filter({ hasText: item3 });
     await productCard.getByRole("button", { name: "Delete" }).click();
+    // Confirm the deletion in the custom confirm dialog
+    await page.getByRole("alertdialog").getByRole("button", { name: "Delete" }).click();
 
     await expect(page.getByText(item3)).not.toBeVisible();
     // The other product should still be there
@@ -137,12 +137,12 @@ test.describe.serial("Products management", () => {
   test("cleans up test data", async ({ page }) => {
     // Delete the test list
     await page.goto("/");
-    page.on("dialog", (dialog) => dialog.accept());
 
     const listCard = page
       .locator('[class*="border-zinc-200"]')
       .filter({ hasText: listName });
     await listCard.getByRole("button", { name: "Delete" }).click();
+    await page.getByRole("alertdialog").getByRole("button", { name: "Delete" }).click();
     await expect(page.getByText(listName)).not.toBeVisible();
 
     // Delete remaining test products
@@ -153,6 +153,7 @@ test.describe.serial("Products management", () => {
       .filter({ hasText: renamedItem });
     if (await productCard.isVisible().catch(() => false)) {
       await productCard.getByRole("button", { name: "Delete" }).click();
+      await page.getByRole("alertdialog").getByRole("button", { name: "Delete" }).click();
     }
   });
 });

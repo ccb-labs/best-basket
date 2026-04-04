@@ -25,10 +25,6 @@ jest.mock("react-dom", () => ({
   useFormStatus: () => ({ pending: false }),
 }));
 
-// Mock window.confirm
-const mockConfirm = jest.fn();
-window.confirm = mockConfirm;
-
 const mockList: ShoppingList = {
   id: "abc-123",
   user_id: "user-1",
@@ -139,8 +135,6 @@ describe("ShoppingListCard", () => {
   });
 
   it("shows confirm dialog when delete is clicked", () => {
-    mockConfirm.mockReturnValue(false);
-
     render(
       <ShoppingListCard
         list={mockList}
@@ -151,8 +145,10 @@ describe("ShoppingListCard", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Delete" }));
 
-    expect(mockConfirm).toHaveBeenCalledWith(
-      'Delete "Weekly Groceries"? This cannot be undone.'
-    );
+    // The custom confirm dialog should appear with the correct message
+    expect(screen.getByRole("alertdialog")).toBeInTheDocument();
+    expect(
+      screen.getByText('Delete "Weekly Groceries"? This cannot be undone.')
+    ).toBeInTheDocument();
   });
 });

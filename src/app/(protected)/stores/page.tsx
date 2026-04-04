@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import {
   createStore,
@@ -7,6 +8,8 @@ import {
   updateDiscount,
   deleteDiscount,
 } from "../actions";
+
+export const metadata: Metadata = { title: "My Stores" };
 import { StoreForm } from "@/components/StoreForm";
 import { StoreCard } from "@/components/StoreCard";
 import { StoreDiscountsSection } from "@/components/StoreDiscountsSection";

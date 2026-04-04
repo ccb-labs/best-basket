@@ -14,6 +14,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -1180,5 +1181,301 @@ export async function unshareList(
   }
 
   revalidatePath(`/lists/${listId}`);
+  return { error: null };
+}
+
+// ─── Template Actions ────────────────────────────────────────
+
+/**
+ * Copy all items from one list to another.
+ *
+ * Used by both "Save as Template" and "Create from Template" to avoid
+ * duplicating the item-copying logic. Copies name, product link,
+ * quantity, unit, and category — checked defaults to false.
+ */
+async function copyListItems(
+  supabase: SupabaseClient,
+  sourceListId: string,
+  targetListId: string
+): Promise<{ error: string | null }> {
+  const { data: sourceItems } = await supabase
+    .from("list_items")
+    .select("name, product_id, quantity, unit, category_id")
+    .eq("list_id", sourceListId);
+
+  if (sourceItems && sourceItems.length > 0) {
+    const newItems = sourceItems.map((item) => ({
+      list_id: targetListId,
+      name: item.name,
+      product_id: item.product_id,
+      quantity: item.quantity,
+      unit: item.unit,
+      category_id: item.category_id,
+    }));
+
+    const { error } = await supabase.from("list_items").insert(newItems);
+    if (error) return { error: "Could not copy items." };
+  }
+
+  return { error: null };
+}
+
+/**
+ * Create a new empty template from scratch.
+ *
+ * Unlike saveAsTemplate (which copies an existing list), this creates
+ * a blank template that the user can then add items to.
+ */
+export async function createTemplate(
+  previousState: ActionResult,
+  formData: FormData
+): Promise<ActionResult> {
+  const name = formData.get("name") as string;
+
+  if (!name || name.trim().length === 0) {
+    return { error: "Please enter a template name." };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { error: "You must be logged in." };
+  }
+
+  const { error } = await supabase
+    .from("shopping_lists")
+    .insert({ name: name.trim(), user_id: user.id, is_template: true });
+
+  if (error) {
+    return { error: "Could not create template. Please try again." };
+  }
+
+  revalidatePath("/templates");
+  return { error: null };
+}
+
+/**
+ * Save an existing shopping list as a reusable template.
+ *
+ * This creates a COPY of the list with is_template = true, then copies
+ * all the list items into the new template. The original list is unchanged.
+ * Think of it like "Save As" — the template is a separate snapshot.
+ */
+export async function saveAsTemplate(
+  previousState: ActionResult,
+  formData: FormData
+): Promise<ActionResult> {
+  const listId = formData.get("list_id") as string;
+
+  if (!listId) {
+    return { error: "Missing list ID." };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { error: "You must be logged in." };
+  }
+
+  // Fetch the source list to get its name
+  const { data: sourceList } = await supabase
+    .from("shopping_lists")
+    .select("name")
+    .eq("id", listId)
+    .single();
+
+  if (!sourceList) {
+    return { error: "List not found." };
+  }
+
+  // Create the template (a new shopping_lists row with is_template = true)
+  const { data: template, error: createError } = await supabase
+    .from("shopping_lists")
+    .insert({
+      name: sourceList.name,
+      user_id: user.id,
+      is_template: true,
+    })
+    .select("id")
+    .single();
+
+  if (createError || !template) {
+    return { error: "Could not create template. Please try again." };
+  }
+
+  // Copy all items from the source list into the template
+  const copyResult = await copyListItems(supabase, listId, template.id);
+  if (copyResult.error) {
+    return { error: "Template created but could not copy items." };
+  }
+
+  // Redirect to the templates page so the user sees their new template
+  redirect("/templates");
+}
+
+/**
+ * Create a new shopping list from a template.
+ *
+ * Copies the template's items into a fresh list. The template stays
+ * unchanged — you can use it again and again. Also updates the
+ * template's last_used_at so the recurrence reminder knows when
+ * this template was last used.
+ */
+export async function createListFromTemplate(
+  previousState: ActionResult,
+  formData: FormData
+): Promise<ActionResult> {
+  const templateId = formData.get("template_id") as string;
+
+  if (!templateId) {
+    return { error: "Missing template ID." };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { error: "You must be logged in." };
+  }
+
+  // Fetch the template to get its name and verify it's a template
+  const { data: template } = await supabase
+    .from("shopping_lists")
+    .select("name, is_template")
+    .eq("id", templateId)
+    .single();
+
+  if (!template) {
+    return { error: "Template not found." };
+  }
+
+  if (!template.is_template) {
+    return { error: "This list is not a template." };
+  }
+
+  // Create a new regular list with the template's name
+  const { data: newList, error: createError } = await supabase
+    .from("shopping_lists")
+    .insert({
+      name: template.name,
+      user_id: user.id,
+      is_template: false,
+    })
+    .select("id")
+    .single();
+
+  if (createError || !newList) {
+    return { error: "Could not create list. Please try again." };
+  }
+
+  // Copy items and update last_used_at
+  const copyResult = await copyListItems(supabase, templateId, newList.id);
+  if (copyResult.error) {
+    return { error: "List created but could not copy items." };
+  }
+
+  // Update last_used_at so the recurrence reminder resets.
+  // For example, if this is a weekly template, the reminder won't
+  // show again until 7 days from now.
+  await supabase
+    .from("shopping_lists")
+    .update({ last_used_at: new Date().toISOString() })
+    .eq("id", templateId);
+
+  // Redirect to the new list so the user can start using it
+  redirect(`/lists/${newList.id}`);
+}
+
+/**
+ * Update a template's name and/or recurrence schedule.
+ *
+ * Recurrence controls how often the app reminds you to create a new
+ * list from this template: "weekly" (every 7 days), "monthly" (every
+ * 30 days), or null (no reminders).
+ */
+export async function updateTemplate(
+  previousState: ActionResult,
+  formData: FormData
+): Promise<ActionResult> {
+  const id = formData.get("id") as string;
+  const name = formData.get("name") as string;
+  const recurrenceRaw = formData.get("recurrence") as string;
+
+  if (!name || name.trim().length === 0) {
+    return { error: "Template name cannot be empty." };
+  }
+
+  // Convert empty string to null (the <select> sends "" for "None")
+  const recurrence =
+    recurrenceRaw === "weekly" || recurrenceRaw === "monthly"
+      ? recurrenceRaw
+      : null;
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { error: "You must be logged in." };
+  }
+
+  const { error } = await supabase
+    .from("shopping_lists")
+    .update({ name: name.trim(), recurrence })
+    .eq("id", id);
+
+  if (error) {
+    return { error: "Could not update template. Please try again." };
+  }
+
+  revalidatePath("/templates");
+  return { error: null };
+}
+
+/**
+ * Delete a template.
+ *
+ * This also deletes all list_items in the template because the
+ * database schema uses ON DELETE CASCADE on foreign keys.
+ * Lists previously created from this template are NOT affected.
+ */
+export async function deleteTemplate(
+  previousState: ActionResult,
+  formData: FormData
+): Promise<ActionResult> {
+  const id = formData.get("id") as string;
+
+  if (!id) {
+    return { error: "Missing template ID." };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { error: "You must be logged in." };
+  }
+
+  const { error } = await supabase
+    .from("shopping_lists")
+    .delete()
+    .eq("id", id);
+
+  if (error) {
+    return { error: "Could not delete template. Please try again." };
+  }
+
+  revalidatePath("/templates");
   return { error: null };
 }

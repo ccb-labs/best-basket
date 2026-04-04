@@ -4,6 +4,7 @@ import { ShoppingListForm } from "@/components/ShoppingListForm";
 import { ShoppingListCard } from "@/components/ShoppingListCard";
 import { SharedListCard } from "@/components/SharedListCard";
 import { EmptyListState } from "@/components/EmptyListState";
+import { TemplateReminderBanner } from "@/components/TemplateReminderBanner";
 import type { ShoppingList, SharedList } from "@/lib/types";
 
 /**
@@ -24,25 +25,49 @@ export default async function HomePage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // Fetch owned lists and shared lists in parallel (independent queries).
+  // Fetch owned lists, shared lists, and recurring templates in parallel.
   // - Owned lists: filter by user_id explicitly so RLS-visible shared lists
   //   aren't included (we show those separately with owner email from the RPC).
   // - Shared lists: uses a database function that joins auth.users for email.
-  const [{ data: lists }, { data: sharedListsData }] = await Promise.all([
-    supabase
-      .from("shopping_lists")
-      .select("*")
-      .eq("user_id", user!.id)
-      .eq("is_template", false)
-      .order("created_at", { ascending: false }),
-    supabase.rpc("get_shared_lists"),
-  ]);
+  // - Recurring templates: templates with a recurrence set, for reminder banners.
+  const [{ data: lists }, { data: sharedListsData }, { data: recurringData }] =
+    await Promise.all([
+      supabase
+        .from("shopping_lists")
+        .select("*")
+        .eq("user_id", user!.id)
+        .eq("is_template", false)
+        .order("created_at", { ascending: false }),
+      supabase.rpc("get_shared_lists"),
+      supabase
+        .from("shopping_lists")
+        .select("*")
+        .eq("user_id", user!.id)
+        .eq("is_template", true)
+        .not("recurrence", "is", null),
+    ]);
 
   const shoppingLists = (lists ?? []) as ShoppingList[];
   const sharedLists = (sharedListsData ?? []) as SharedList[];
+  const recurringTemplates = (recurringData ?? []) as ShoppingList[];
+
+  // Find templates that are "due" — their recurrence period has passed.
+  // We compare last_used_at (or created_at if never used) against the threshold.
+  const now = new Date();
+  const dueTemplates = recurringTemplates.filter((t) => {
+    const lastUsed = new Date(t.last_used_at ?? t.created_at);
+    const daysSinceUse =
+      (now.getTime() - lastUsed.getTime()) / (1000 * 60 * 60 * 24);
+    if (t.recurrence === "weekly") return daysSinceUse >= 7;
+    if (t.recurrence === "monthly") return daysSinceUse >= 30;
+    return false;
+  });
 
   return (
     <div className="flex flex-col gap-4">
+      {/* Reminder banners for templates that are due */}
+      <TemplateReminderBanner dueTemplates={dueTemplates} />
+
       <h2 className="text-xl font-semibold">My Shopping Lists</h2>
 
       {/* Form to create a new list — always visible at the top */}

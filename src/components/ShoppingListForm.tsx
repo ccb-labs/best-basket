@@ -13,12 +13,15 @@ import type { ActionResult } from "@/app/(protected)/actions";
 
 export function ShoppingListForm({
   createAction,
+  placeholder = "New list name...",
 }: {
   /** The Server Action to call when the form is submitted */
   createAction: (
     previousState: ActionResult,
     formData: FormData
   ) => Promise<ActionResult>;
+  /** Placeholder text for the input field */
+  placeholder?: string;
 }) {
   // We use a ref to access the form element so we can clear the input
   // after a successful submission.
@@ -51,7 +54,7 @@ export function ShoppingListForm({
         <input
           type="text"
           name="name"
-          placeholder="New list name..."
+          placeholder={placeholder}
           required
           className="flex-1 rounded-md border border-zinc-300 px-3 py-2 text-sm focus:border-zinc-500 focus:outline-none"
         />

@@ -7,6 +7,8 @@ import { ListItemCard } from "@/components/ListItemCard";
 import { ItemPricesSection } from "@/components/ItemPricesSection";
 import { EmptyItemState } from "@/components/EmptyItemState";
 import { ShareListSection } from "@/components/ShareListSection";
+import { SubmitButton } from "@/components/SubmitButton";
+import { ActionFormButton } from "@/components/ActionFormButton";
 import {
   addItem,
   updateItem,
@@ -20,6 +22,8 @@ import {
   deleteDiscount,
   shareList,
   unshareList,
+  saveAsTemplate,
+  createListFromTemplate,
 } from "@/app/(protected)/actions";
 import { groupItemsByCategory } from "@/lib/list-helpers";
 
@@ -75,19 +79,27 @@ export default async function ListDetailPage({
 
   return (
     <div>
+      {/* Back link — goes to /templates when viewing a template, / otherwise */}
       <Link
-        href="/"
+        href={list.is_template ? "/templates" : "/"}
         className="text-sm text-zinc-500 hover:text-zinc-700"
       >
-        &larr; Back to lists
+        &larr; {list.is_template ? "Back to templates" : "Back to lists"}
       </Link>
 
-      <div className="mt-3 flex items-center justify-between">
+      <div className="mt-3 flex items-center gap-2">
         <h2 className="text-xl font-semibold">{list.name}</h2>
+        {/* Recurrence badge — shown on templates with a schedule */}
+        {list.is_template && list.recurrence && (
+          <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs text-blue-700">
+            {list.recurrence === "weekly" ? "Weekly" : "Monthly"}
+          </span>
+        )}
+      </div>
 
-        <div className="flex items-center gap-2">
-          {/* Show "Start Shopping" when the list has items */}
-          {items.length > 0 && (
+      <div className="mt-2 flex flex-wrap items-center justify-center gap-2">
+          {/* Regular list buttons — shopping and compare */}
+          {!list.is_template && items.length > 0 && (
             <Link
               href={`/lists/${id}/shop`}
               className="rounded-md bg-green-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-green-700"
@@ -96,8 +108,7 @@ export default async function ListDetailPage({
             </Link>
           )}
 
-          {/* Show "Compare Prices" link only when there are prices to compare */}
-          {pricesByProduct.size > 0 && (
+          {!list.is_template && pricesByProduct.size > 0 && (
             <Link
               href={`/lists/${id}/compare`}
               className="rounded-md bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-zinc-800"
@@ -105,7 +116,35 @@ export default async function ListDetailPage({
               Compare Prices
             </Link>
           )}
-        </div>
+
+          {/* Use Template — creates a new list and redirects to it.
+              Uses a plain form (not ActionFormButton) because the server
+              action calls redirect(), which doesn't return a result.
+              .bind(null, ...) pre-fills the previousState argument so the
+              form only needs to pass formData. */}
+          {list.is_template && (
+            <form action={createListFromTemplate.bind(null, { error: null }) as unknown as (formData: FormData) => void}>
+              <input type="hidden" name="template_id" value={id} />
+              <SubmitButton
+                label="Use Template"
+                pendingLabel="Creating..."
+                className="rounded-md bg-green-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50"
+              />
+            </form>
+          )}
+
+          {/* Save as Template — only on regular lists the user owns */}
+          {!list.is_template && isOwner && (
+            <ActionFormButton
+              action={saveAsTemplate}
+              hiddenInputName="list_id"
+              hiddenInputValue={id}
+              label="Save as Template"
+              pendingLabel="Saving..."
+              successMessage="Template saved!"
+              buttonClassName="rounded-md border border-zinc-300 px-3 py-1.5 text-sm font-medium text-zinc-700 hover:bg-zinc-100 disabled:opacity-50"
+            />
+          )}
       </div>
 
       {/* Share management — only visible to the list owner */}

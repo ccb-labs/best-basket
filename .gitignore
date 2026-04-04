@@ -41,6 +41,9 @@ yarn-error.log*
 /playwright/.cache/
 /e2e/.auth/
 
+# supabase
+supabase/.temp/
+
 # vercel
 .vercel
 

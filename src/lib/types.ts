@@ -13,6 +13,7 @@ export type ShoppingList = {
   created_at: string;
   is_template: boolean;
   recurrence: "weekly" | "monthly" | null;
+  last_used_at: string | null;
 };
 
 /** A category as stored in the categories table */

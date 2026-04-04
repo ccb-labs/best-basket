@@ -11,9 +11,10 @@
  */
 "use client";
 
-import { useState, useActionState } from "react";
+import { useState, useActionState, useRef } from "react";
 import Link from "next/link";
 import { SubmitButton } from "@/components/SubmitButton";
+import { useConfirm } from "@/components/ConfirmDialog";
 import type { ShoppingList } from "@/lib/types";
 import type { ActionResult } from "@/app/(protected)/actions";
 
@@ -45,6 +46,8 @@ export function TemplateCard({
   ) => Promise<ActionResult>;
 }) {
   const [isEditing, setIsEditing] = useState(false);
+  const deleteFormRef = useRef<HTMLFormElement>(null);
+  const { requestConfirm, confirmDialog } = useConfirm();
 
   // Track errors from each action
   const [updateState, updateFormAction] = useActionState(
@@ -148,21 +151,16 @@ export function TemplateCard({
               Edit
             </button>
 
-            <form
-              className="flex"
-              action={deleteFormAction}
-              onSubmit={(e) => {
-                const confirmed = window.confirm(
-                  `Delete template "${template.name}"? This cannot be undone.`
-                );
-                if (!confirmed) {
-                  e.preventDefault();
-                }
-              }}
-            >
+            <form ref={deleteFormRef} className="flex" action={deleteFormAction}>
               <input type="hidden" name="id" value={template.id} />
               <button
-                type="submit"
+                type="button"
+                onClick={() =>
+                  requestConfirm({
+                    message: `Delete template "${template.name}"? This cannot be undone.`,
+                    onConfirm: () => deleteFormRef.current?.requestSubmit(),
+                  })
+                }
                 className="rounded-md px-2 py-1 text-xs text-red-600 hover:bg-red-50"
               >
                 Delete
@@ -178,6 +176,8 @@ export function TemplateCard({
           {error}
         </p>
       )}
+
+      {confirmDialog}
     </div>
   );
 }

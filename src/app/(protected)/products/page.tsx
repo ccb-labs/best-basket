@@ -1,9 +1,12 @@
+import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import {
   updateProduct,
   deleteProduct,
   mergeProducts,
 } from "../actions";
+
+export const metadata: Metadata = { title: "My Products" };
 import { ProductCard } from "@/components/ProductCard";
 import type { ProductWithCounts } from "@/components/ProductCard";
 import { EmptyProductState } from "@/components/EmptyProductState";

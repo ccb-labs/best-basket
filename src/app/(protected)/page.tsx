@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { createList, updateList, deleteList } from "./actions";
 import { ShoppingListForm } from "@/components/ShoppingListForm";
@@ -6,6 +7,8 @@ import { SharedListCard } from "@/components/SharedListCard";
 import { EmptyListState } from "@/components/EmptyListState";
 import { TemplateReminderBanner } from "@/components/TemplateReminderBanner";
 import type { ShoppingList, SharedList } from "@/lib/types";
+
+export const metadata: Metadata = { title: "My Lists" };
 
 /**
  * Home page — shows the user's shopping lists.

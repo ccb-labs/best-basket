@@ -21,6 +21,8 @@ import { createClient } from "@/lib/supabase/client";
 import type { ActionResult } from "@/app/(protected)/actions";
 import type { Category, Product } from "@/lib/types";
 
+const MIN_SEARCH_LENGTH = 2;
+
 export function AddItemForm({
   listId,
   categories,
@@ -51,26 +53,31 @@ export function AddItemForm({
   const [showSuggestions, setShowSuggestions] = useState(false);
 
   // Debounced search: query products after the user stops typing for 300ms.
-  // useEffect runs whenever nameValue changes. The timeout is cleaned up
-  // if the user types again before 300ms, preventing too many requests.
+  // Both branches run inside setTimeout so setState is never called
+  // synchronously in the effect body (avoids cascading renders).
   useEffect(() => {
-    if (nameValue.trim().length < 2) {
-      setSuggestions([]);
-      return;
-    }
+    const trimmed = nameValue.trim();
 
-    const timer = setTimeout(async () => {
-      const supabase = createClient();
-      const { data } = await supabase
-        .from("products")
-        .select("id, name, user_id")
-        .ilike("name", `%${nameValue.trim()}%`)
-        .order("name")
-        .limit(5);
+    const timer = setTimeout(
+      async () => {
+        if (trimmed.length < MIN_SEARCH_LENGTH) {
+          setSuggestions([]);
+          return;
+        }
 
-      setSuggestions((data ?? []) as Product[]);
-      setShowSuggestions(true);
-    }, 300);
+        const supabase = createClient();
+        const { data } = await supabase
+          .from("products")
+          .select("id, name, user_id")
+          .ilike("name", `%${trimmed}%`)
+          .order("name")
+          .limit(5);
+
+        setSuggestions((data ?? []) as Product[]);
+        setShowSuggestions(true);
+      },
+      trimmed.length < MIN_SEARCH_LENGTH ? 0 : 300
+    );
 
     return () => clearTimeout(timer);
   }, [nameValue]);

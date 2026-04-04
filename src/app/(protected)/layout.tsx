@@ -2,6 +2,8 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { LogoutButton } from "@/components/LogoutButton";
+import { MobileNav } from "@/components/MobileNav";
+import { NAV_LINKS } from "@/lib/constants";
 
 /**
  * Layout for all protected pages (pages that require login).
@@ -35,42 +37,29 @@ export default async function ProtectedLayout({
   return (
     <div className="min-h-screen bg-zinc-50">
       {/* Header bar shown on all protected pages */}
-      {/* Header bar shown on all protected pages */}
-      <header className="flex items-center justify-between border-b bg-white px-4 py-3">
+      <header className="relative flex items-center justify-between border-b bg-white px-4 py-3">
         <div className="flex items-center gap-4">
           <h1 className="text-lg font-semibold">Best Basket</h1>
-          {/* Navigation links for the main sections */}
-          <nav className="flex items-center gap-3">
-            <Link
-              href="/"
-              className="text-sm text-zinc-500 hover:text-zinc-700"
-            >
-              Lists
-            </Link>
-            <Link
-              href="/stores"
-              className="text-sm text-zinc-500 hover:text-zinc-700"
-            >
-              Stores
-            </Link>
-            <Link
-              href="/products"
-              className="text-sm text-zinc-500 hover:text-zinc-700"
-            >
-              Products
-            </Link>
-            <Link
-              href="/templates"
-              className="text-sm text-zinc-500 hover:text-zinc-700"
-            >
-              Templates
-            </Link>
+          {/* Desktop navigation — hidden on small screens */}
+          <nav className="hidden items-center gap-3 md:flex">
+            {NAV_LINKS.map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                className="text-sm text-zinc-500 hover:text-zinc-700"
+              >
+                {link.label}
+              </Link>
+            ))}
           </nav>
         </div>
-        <div className="flex items-center gap-3">
+        {/* Desktop user info — hidden on small screens */}
+        <div className="hidden items-center gap-3 md:flex">
           <span className="text-sm text-zinc-500">{user.email}</span>
           <LogoutButton />
         </div>
+        {/* Mobile hamburger menu — visible only on small screens */}
+        <MobileNav userEmail={user.email ?? ""} logoutButton={<LogoutButton />} />
       </header>
 
       {/* Main content area — max-w-lg keeps it readable on large screens */}

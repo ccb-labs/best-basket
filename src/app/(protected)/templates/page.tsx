@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import {
   createTemplate,
@@ -5,6 +6,8 @@ import {
   deleteTemplate,
   createListFromTemplate,
 } from "../actions";
+
+export const metadata: Metadata = { title: "My Templates" };
 import { ShoppingListForm } from "@/components/ShoppingListForm";
 import { TemplateCard } from "@/components/TemplateCard";
 import { EmptyTemplateState } from "@/components/EmptyTemplateState";

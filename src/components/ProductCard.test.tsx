@@ -25,10 +25,6 @@ jest.mock("react-dom", () => ({
   useFormStatus: () => ({ pending: false }),
 }));
 
-// Mock window.confirm
-const mockConfirm = jest.fn();
-window.confirm = mockConfirm;
-
 const mockProduct: ProductWithCounts = {
   id: "product-1",
   user_id: "user-1",
@@ -134,8 +130,6 @@ describe("ProductCard", () => {
   });
 
   it("shows confirm dialog when delete is clicked", () => {
-    mockConfirm.mockReturnValue(false);
-
     render(
       <ProductCard
         product={mockProduct}
@@ -149,9 +143,11 @@ describe("ProductCard", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Delete" }));
 
-    expect(mockConfirm).toHaveBeenCalledWith(
-      'Delete "Milk"? 3 item(s) will lose their prices.'
-    );
+    // The custom confirm dialog should appear with the correct message
+    expect(screen.getByRole("alertdialog")).toBeInTheDocument();
+    expect(
+      screen.getByText('Delete "Milk"? 3 item(s) will lose their prices.')
+    ).toBeInTheDocument();
   });
 
   it("shows merge form when merge button is clicked", () => {

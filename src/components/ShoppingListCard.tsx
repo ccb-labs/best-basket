@@ -11,9 +11,10 @@
  */
 "use client";
 
-import { useState, useActionState } from "react";
+import { useState, useActionState, useRef } from "react";
 import Link from "next/link";
 import { SubmitButton } from "@/components/SubmitButton";
+import { useConfirm } from "@/components/ConfirmDialog";
 import type { ShoppingList } from "@/lib/types";
 import type { ActionResult } from "@/app/(protected)/actions";
 
@@ -37,6 +38,8 @@ export function ShoppingListCard({
 }) {
   // Toggle between view mode and edit mode
   const [isEditing, setIsEditing] = useState(false);
+  const deleteFormRef = useRef<HTMLFormElement>(null);
+  const { requestConfirm, confirmDialog } = useConfirm();
 
   // Track errors from the update and delete actions
   const [updateState, updateFormAction] = useActionState(
@@ -116,22 +119,16 @@ export function ShoppingListCard({
             </button>
 
             {/* Delete button — wrapped in a form for the Server Action */}
-            <form
-              className="flex"
-              action={deleteFormAction}
-              onSubmit={(e) => {
-                // Show a confirmation dialog before deleting
-                const confirmed = window.confirm(
-                  `Delete "${list.name}"? This cannot be undone.`
-                );
-                if (!confirmed) {
-                  e.preventDefault();
-                }
-              }}
-            >
+            <form ref={deleteFormRef} className="flex" action={deleteFormAction}>
               <input type="hidden" name="id" value={list.id} />
               <button
-                type="submit"
+                type="button"
+                onClick={() =>
+                  requestConfirm({
+                    message: `Delete "${list.name}"? This cannot be undone.`,
+                    onConfirm: () => deleteFormRef.current?.requestSubmit(),
+                  })
+                }
                 className="rounded-md px-2 py-1 text-xs text-red-600 hover:bg-red-50"
               >
                 Delete
@@ -147,6 +144,8 @@ export function ShoppingListCard({
           {error}
         </p>
       )}
+
+      {confirmDialog}
     </div>
   );
 }

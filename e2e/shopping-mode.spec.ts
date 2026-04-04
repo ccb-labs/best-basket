@@ -29,18 +29,16 @@ test.describe.serial("Shopping mode", () => {
     await page.getByRole("link", { name: listName }).click();
     await expect(page).toHaveURL(/\/lists\/[a-f0-9-]+/);
 
-    // Add 3 items
-    await page.getByPlaceholder("Item name...").fill("Milk");
-    await page.getByRole("button", { name: "Add item" }).click();
-    await expect(page.getByText("Milk")).toBeVisible();
-
-    await page.getByPlaceholder("Item name...").fill("Bread");
-    await page.getByRole("button", { name: "Add item" }).click();
-    await expect(page.getByText("Bread")).toBeVisible();
-
-    await page.getByPlaceholder("Item name...").fill("Apples");
-    await page.getByRole("button", { name: "Add item" }).click();
-    await expect(page.getByText("Apples")).toBeVisible();
+    // Add 3 items. We wait for each submission to complete before adding
+    // the next one. The waitForTimeout dismisses autocomplete suggestions
+    // that could overlap the submit button.
+    for (const itemName of ["Milk", "Bread", "Apples"]) {
+      const nameInput = page.getByPlaceholder("Item name...");
+      await nameInput.fill(itemName);
+      await nameInput.press("Enter");
+      await expect(page.getByRole("button", { name: "Add item" })).toBeVisible();
+      await expect(page.getByText(itemName)).toBeVisible();
+    }
   });
 
   test("navigates to shopping mode from list detail", async ({ page }) => {
@@ -63,8 +61,13 @@ test.describe.serial("Shopping mode", () => {
     await page.getByRole("link", { name: listName }).click();
     await page.getByRole("link", { name: "Start Shopping" }).click();
 
-    // Check off "Milk"
-    await page.getByRole("button", { name: "Check Milk" }).click();
+    // Check off "Milk" and wait for the server action to persist the change
+    await Promise.all([
+      page.waitForResponse(
+        (resp) => resp.request().method() === "POST" && resp.ok()
+      ),
+      page.getByRole("button", { name: "Check Milk" }).click(),
+    ]);
 
     // Progress should update
     await expect(page.getByText("1 of 3 items")).toBeVisible();
@@ -107,11 +110,9 @@ test.describe.serial("Shopping mode", () => {
     await page.getByRole("link", { name: listName }).click();
     await page.getByRole("link", { name: "Start Shopping" }).click();
 
-    // Accept the confirmation dialog
-    page.on("dialog", (dialog) => dialog.accept());
-
-    // Click "Uncheck all"
+    // Click "Uncheck all" and confirm in the custom dialog
     await page.getByRole("button", { name: "Uncheck all" }).click();
+    await page.getByRole("alertdialog").getByRole("button", { name: "Uncheck all" }).click();
 
     // Progress should reset
     await expect(page.getByText("0 of 3 items")).toBeVisible();
@@ -125,13 +126,13 @@ test.describe.serial("Shopping mode", () => {
   test("cleans up by deleting the test list", async ({ page }) => {
     await page.goto("/");
 
-    // Accept the confirmation dialog for delete
-    page.on("dialog", (dialog) => dialog.accept());
-
-    // Find the list card and click Edit, then Delete
-    const listCard = page.locator("div").filter({ hasText: listName }).first();
-    await listCard.getByRole("button", { name: "Edit" }).click();
+    // Find the list card and click Delete (visible in view mode)
+    const listCard = page
+      .locator('[class*="border-zinc-200"]')
+      .filter({ hasText: listName });
     await listCard.getByRole("button", { name: "Delete" }).click();
+    // Confirm the deletion in the custom confirm dialog
+    await page.getByRole("alertdialog").getByRole("button", { name: "Delete" }).click();
 
     // List should be gone
     await expect(page.getByText(listName)).not.toBeVisible();

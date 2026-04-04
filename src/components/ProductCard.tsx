@@ -11,8 +11,9 @@
  */
 "use client";
 
-import { useState, useActionState } from "react";
+import { useState, useActionState, useRef } from "react";
 import { SubmitButton } from "@/components/SubmitButton";
+import { useConfirm } from "@/components/ConfirmDialog";
 import { MergeProductForm } from "@/components/MergeProductForm";
 import type { Product, ItemPriceWithStore } from "@/lib/types";
 import type { ActionResult } from "@/app/(protected)/actions";
@@ -55,6 +56,8 @@ export function ProductCard({
 }) {
   const [isEditing, setIsEditing] = useState(false);
   const [isMerging, setIsMerging] = useState(false);
+  const deleteFormRef = useRef<HTMLFormElement>(null);
+  const { requestConfirm, confirmDialog } = useConfirm();
 
   const [updateState, updateFormAction] = useActionState(
     async (previousState: ActionResult, formData: FormData) => {
@@ -142,23 +145,20 @@ export function ProductCard({
                 Merge
               </button>
 
-              <form
-                className="flex"
-                action={deleteFormAction}
-                onSubmit={(e) => {
-                  const message =
-                    product.item_count > 0
-                      ? `Delete "${product.name}"? ${product.item_count} item(s) will lose their prices.`
-                      : `Delete "${product.name}" and its prices?`;
-                  const confirmed = window.confirm(message);
-                  if (!confirmed) {
-                    e.preventDefault();
-                  }
-                }}
-              >
+              <form ref={deleteFormRef} className="flex" action={deleteFormAction}>
                 <input type="hidden" name="id" value={product.id} />
                 <button
-                  type="submit"
+                  type="button"
+                  onClick={() => {
+                    const message =
+                      product.item_count > 0
+                        ? `Delete "${product.name}"? ${product.item_count} item(s) will lose their prices.`
+                        : `Delete "${product.name}" and its prices?`;
+                    requestConfirm({
+                      message,
+                      onConfirm: () => deleteFormRef.current?.requestSubmit(),
+                    });
+                  }}
                   className="rounded-md px-2 py-1 text-xs text-red-600 hover:bg-red-50"
                 >
                   Delete
@@ -184,6 +184,8 @@ export function ProductCard({
           {error}
         </p>
       )}
+
+      {confirmDialog}
     </div>
   );
 }

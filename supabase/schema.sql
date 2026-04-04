@@ -67,7 +67,8 @@ create table shopping_lists (
   name text not null,
   created_at timestamptz default now() not null,
   is_template boolean default false not null,
-  recurrence text check (recurrence in ('weekly', 'monthly'))
+  recurrence text check (recurrence in ('weekly', 'monthly')),
+  last_used_at timestamptz
 );
 
 alter table shopping_lists enable row level security;

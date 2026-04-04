@@ -59,6 +59,12 @@ export default async function ProtectedLayout({
             >
               Products
             </Link>
+            <Link
+              href="/templates"
+              className="text-sm text-zinc-500 hover:text-zinc-700"
+            >
+              Templates
+            </Link>
           </nav>
         </div>
         <div className="flex items-center gap-3">

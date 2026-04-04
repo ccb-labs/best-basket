@@ -14,6 +14,20 @@ jest.mock("react-dom", () => ({
   useFormStatus: () => ({ pending: false }),
 }));
 
+// Mock the voice input hook — default: not supported (jsdom has no Speech API)
+const mockStartListening = jest.fn();
+const mockStopListening = jest.fn();
+let mockVoiceSupported = false;
+
+jest.mock("@/hooks/useVoiceInput", () => ({
+  useVoiceInput: () => ({
+    isSupported: mockVoiceSupported,
+    isListening: false,
+    startListening: mockStartListening,
+    stopListening: mockStopListening,
+  }),
+}));
+
 const mockCategories: Category[] = [
   { id: "cat-1", user_id: null, name: "Beverages" },
   { id: "cat-2", user_id: null, name: "Fruits" },
@@ -126,5 +140,37 @@ describe("AddItemForm", () => {
 
     const nameInput = screen.getByPlaceholderText("Item name...");
     expect(nameInput).toBeRequired();
+  });
+
+  it("does not render the mic button when speech is not supported", () => {
+    mockVoiceSupported = false;
+    render(
+      <AddItemForm
+        listId="list-1"
+        categories={mockCategories}
+        addItemAction={mockAddItemAction}
+        createCategoryAction={mockCreateCategoryAction}
+      />
+    );
+
+    expect(
+      screen.queryByRole("button", { name: "Voice input" })
+    ).not.toBeInTheDocument();
+  });
+
+  it("renders the mic button when speech is supported", () => {
+    mockVoiceSupported = true;
+    render(
+      <AddItemForm
+        listId="list-1"
+        categories={mockCategories}
+        addItemAction={mockAddItemAction}
+        createCategoryAction={mockCreateCategoryAction}
+      />
+    );
+
+    expect(
+      screen.getByRole("button", { name: "Voice input" })
+    ).toBeInTheDocument();
   });
 });

@@ -354,6 +354,81 @@ export async function deleteItem(
   return { error: null };
 }
 
+// ─── Shopping Mode Actions ────────────────────────────────────────
+
+/**
+ * Toggle the checked state of a list item (for shopping mode).
+ *
+ * Unlike other actions, this one takes direct parameters instead of
+ * FormData. This is because checking items off needs to feel instant —
+ * it's called from an onClick handler with useOptimistic, not a form.
+ *
+ * Both patterns are valid Server Actions — the "use server" directive
+ * at the top of this file covers all exported functions.
+ */
+export async function toggleItemChecked(
+  itemId: string,
+  listId: string,
+  checked: boolean
+): Promise<ActionResult> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { error: "You must be logged in." };
+  }
+
+  // RLS ensures users can only update items in their own lists
+  const { error } = await supabase
+    .from("list_items")
+    .update({ checked })
+    .eq("id", itemId);
+
+  if (error) {
+    return { error: "Could not update item. Please try again." };
+  }
+
+  // Revalidate so the server state matches the optimistic UI.
+  // Without this, useOptimistic reverts to the stale server state
+  // once the transition completes, causing the item to uncheck itself.
+  revalidatePath(`/lists/${listId}/shop`);
+  return { error: null };
+}
+
+/**
+ * Uncheck all items in a shopping list (reset for next shopping trip).
+ *
+ * Sets every item's checked column back to false. Called when the user
+ * taps "Uncheck all" in shopping mode.
+ */
+export async function uncheckAllItems(
+  listId: string
+): Promise<ActionResult> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { error: "You must be logged in." };
+  }
+
+  // Update all items in this list — RLS ensures ownership
+  const { error } = await supabase
+    .from("list_items")
+    .update({ checked: false })
+    .eq("list_id", listId);
+
+  if (error) {
+    return { error: "Could not reset items. Please try again." };
+  }
+
+  revalidatePath(`/lists/${listId}/shop`);
+  return { error: null };
+}
+
 // ─── Category Actions ─────────────────────────────────────────────
 
 /**

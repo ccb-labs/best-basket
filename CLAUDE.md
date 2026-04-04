@@ -45,7 +45,9 @@ Best Basket is a shopping list and price comparison web app. Users create shoppi
 - **Phase 5:** Store and store product coupon discounts
 - **Phase 6:** Price comparison dashboard + smart split logic
 - **Phase 7:** Shopping mode (check off items, mobile UX polish)
-- **Phase 8:** Final polish, deploy to Vercel
+- **Phase 8:** Shared lists (share a list with other users for collaborative viewing and editing)
+- **Phase 9:** Template lists (save lists as reusable templates with optional weekly/monthly recurrence)
+- **Phase 10:** Final polish, deploy to Vercel
 
 ## Database Schema (Supabase)
 Tables to create (ask before implementing if unsure):

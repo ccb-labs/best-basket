@@ -125,7 +125,8 @@ create table list_items (
   name text not null,
   quantity numeric default 1 not null,
   unit text,
-  category_id uuid references categories(id) on delete set null
+  category_id uuid references categories(id) on delete set null,
+  checked boolean default false not null  -- Phase 7: shopping mode check-off
 );
 
 alter table list_items enable row level security;

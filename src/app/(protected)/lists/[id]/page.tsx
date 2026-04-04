@@ -17,7 +17,7 @@ import {
   updateDiscount,
   deleteDiscount,
 } from "@/app/(protected)/actions";
-import type { ListItemWithCategory } from "@/lib/types";
+import { groupItemsByCategory } from "@/lib/list-helpers";
 
 /**
  * List detail page — shows a shopping list's items with the ability
@@ -48,23 +48,8 @@ export default async function ListDetailPage({
   const { list, items, categories, stores, pricesByProduct, allDiscounts } =
     data;
 
-  // Group items by category name so we can render them in sections.
-  // Items without a category go into "Uncategorized".
-  const grouped = new Map<string, ListItemWithCategory[]>();
-  for (const item of items) {
-    const categoryName = item.categories?.name ?? "Uncategorized";
-    if (!grouped.has(categoryName)) {
-      grouped.set(categoryName, []);
-    }
-    grouped.get(categoryName)!.push(item);
-  }
-
-  // Sort the groups alphabetically, but put "Uncategorized" last
-  const sortedGroups = [...grouped.entries()].sort(([a], [b]) => {
-    if (a === "Uncategorized") return 1;
-    if (b === "Uncategorized") return -1;
-    return a.localeCompare(b);
-  });
+  // Group items by category name so we can render them in sections
+  const sortedGroups = groupItemsByCategory(items);
 
   return (
     <div>
@@ -78,15 +63,27 @@ export default async function ListDetailPage({
       <div className="mt-3 flex items-center justify-between">
         <h2 className="text-xl font-semibold">{list.name}</h2>
 
-        {/* Show "Compare Prices" link only when there are prices to compare */}
-        {pricesByProduct.size > 0 && (
-          <Link
-            href={`/lists/${id}/compare`}
-            className="rounded-md bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-zinc-800"
-          >
-            Compare Prices
-          </Link>
-        )}
+        <div className="flex items-center gap-2">
+          {/* Show "Start Shopping" when the list has items */}
+          {items.length > 0 && (
+            <Link
+              href={`/lists/${id}/shop`}
+              className="rounded-md bg-green-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-green-700"
+            >
+              Start Shopping
+            </Link>
+          )}
+
+          {/* Show "Compare Prices" link only when there are prices to compare */}
+          {pricesByProduct.size > 0 && (
+            <Link
+              href={`/lists/${id}/compare`}
+              className="rounded-md bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-zinc-800"
+            >
+              Compare Prices
+            </Link>
+          )}
+        </div>
       </div>
 
       {/* Form to add new items — always visible at the top */}

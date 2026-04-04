@@ -9,6 +9,7 @@
 
 import { useState, useActionState } from "react";
 import { SubmitButton } from "@/components/SubmitButton";
+import { formatQuantity } from "@/lib/list-helpers";
 import type { ListItemWithCategory, Category } from "@/lib/types";
 import type { ActionResult } from "@/app/(protected)/actions";
 
@@ -49,10 +50,7 @@ export function ListItemCard({
     error: null,
   });
 
-  // Format quantity + unit for display (e.g. "2 kg" or just "2")
-  const quantityDisplay = item.unit
-    ? `${item.quantity} ${item.unit}`
-    : `${item.quantity}`;
+  const quantityDisplay = formatQuantity(item.quantity, item.unit);
 
   const error = updateState.error || deleteState.error;
 

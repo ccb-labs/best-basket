@@ -38,6 +38,7 @@ export type ListItem = {
   quantity: number;
   unit: string | null;
   category_id: string | null;
+  checked: boolean; // Phase 7: whether the item has been checked off while shopping
 };
 
 /**
@@ -96,4 +97,11 @@ export type Discount = {
   type: "percentage" | "fixed";
   value: number;
   description: string | null;
+};
+
+/** Best deal info for an item from the smart split calculation */
+export type BestDealInfo = {
+  storeName: string;
+  unitPrice: number;
+  lineTotal: number;
 };

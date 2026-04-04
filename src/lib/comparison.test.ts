@@ -15,6 +15,7 @@ function makeItem(overrides: Partial<ListItem> = {}): ListItem {
     quantity: 1,
     unit: null,
     category_id: null,
+    checked: false,
     ...overrides,
   };
 }

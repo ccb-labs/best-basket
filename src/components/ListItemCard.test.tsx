@@ -37,6 +37,7 @@ const mockItem: ListItemWithCategory = {
   quantity: 2,
   unit: "L",
   category_id: "cat-1",
+  checked: false,
   categories: { name: "Beverages" },
 };
 
@@ -48,6 +49,7 @@ const mockItemNoCategory: ListItemWithCategory = {
   quantity: 1,
   unit: null,
   category_id: null,
+  checked: false,
   categories: null,
 };
 

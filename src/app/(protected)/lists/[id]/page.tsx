@@ -1,10 +1,12 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
 import { fetchListPageData } from "@/lib/list-data";
 import { AddItemForm } from "@/components/AddItemForm";
 import { ListItemCard } from "@/components/ListItemCard";
 import { ItemPricesSection } from "@/components/ItemPricesSection";
 import { EmptyItemState } from "@/components/EmptyItemState";
+import { ShareListSection } from "@/components/ShareListSection";
 import {
   addItem,
   updateItem,
@@ -16,6 +18,8 @@ import {
   addDiscount,
   updateDiscount,
   deleteDiscount,
+  shareList,
+  unshareList,
 } from "@/app/(protected)/actions";
 import { groupItemsByCategory } from "@/lib/list-helpers";
 
@@ -45,8 +49,26 @@ export default async function ListDetailPage({
     notFound();
   }
 
-  const { list, items, categories, stores, pricesByProduct, allDiscounts } =
-    data;
+  const {
+    list,
+    items,
+    categories,
+    stores,
+    pricesByProduct,
+    allDiscounts,
+    isOwner,
+  } = data;
+
+  // Fetch the list of shared users (only returns results for the owner)
+  let shares: { id: string; user_id: string; email: string }[] = [];
+  if (isOwner) {
+    const supabase = await createClient();
+    const { data: sharesData } = await supabase.rpc(
+      "get_list_shares_with_email",
+      { p_list_id: id }
+    );
+    shares = sharesData ?? [];
+  }
 
   // Group items by category name so we can render them in sections
   const sortedGroups = groupItemsByCategory(items);
@@ -85,6 +107,25 @@ export default async function ListDetailPage({
           )}
         </div>
       </div>
+
+      {/* Share management — only visible to the list owner */}
+      {isOwner && (
+        <div className="mt-3">
+          <ShareListSection
+            listId={id}
+            shares={shares}
+            shareAction={shareList}
+            unshareAction={unshareList}
+          />
+        </div>
+      )}
+
+      {/* Badge for shared users so they know who owns the list */}
+      {!isOwner && (
+        <p className="mt-2 text-xs text-zinc-400">
+          Shared with you — you can view and edit items
+        </p>
+      )}
 
       {/* Form to add new items — always visible at the top */}
       <div className="mt-4">

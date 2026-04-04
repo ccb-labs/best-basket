@@ -99,6 +99,24 @@ export type Discount = {
   description: string | null;
 };
 
+/** A sharing record linking a list to a shared user */
+export type ListShare = {
+  id: string;
+  list_id: string;
+  user_id: string;
+};
+
+/**
+ * A shared list as returned by the get_shared_lists() database function.
+ * Includes the owner's email so we can show "Shared by [email]" in the UI.
+ */
+export type SharedList = {
+  id: string;
+  name: string;
+  created_at: string;
+  owner_email: string;
+};
+
 /** Best deal info for an item from the smart split calculation */
 export type BestDealInfo = {
   storeName: string;

@@ -29,6 +29,8 @@ export type ListPageData = {
   stores: Store[];
   pricesByProduct: Map<string, ItemPriceWithStore[]>;
   allDiscounts: Discount[];
+  /** True if the current user owns this list, false if it's shared with them */
+  isOwner: boolean;
 };
 
 /**
@@ -131,5 +133,6 @@ export async function fetchListPageData(
     stores: (stores ?? []) as Store[],
     pricesByProduct,
     allDiscounts,
+    isOwner: list.user_id === user?.id,
   };
 }

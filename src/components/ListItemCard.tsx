@@ -56,7 +56,7 @@ export function ListItemCard({
     error: null,
   });
 
-  const quantityDisplay = formatQuantity(item.quantity, item.units.abbreviation);
+  const quantityDisplay = formatQuantity(item.quantity, item.units.name);
 
   const error = updateState.error || deleteState.error;
 

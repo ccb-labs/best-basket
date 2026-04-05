@@ -39,13 +39,26 @@ export function groupItemsByCategory(
 }
 
 /**
- * Format a quantity and unit for display.
+ * Portuguese pluralization for unit names.
  *
- * Examples: "2 Kg", "1 L", "3 Un"
+ * Common patterns:
+ *   - ending in "m" → replace with "ns" (embalagem → embalagens)
+ *   - everything else → add "s" (unidade → unidades, litro → litros)
+ */
+export function pluralizePortuguese(name: string): string {
+  if (name.endsWith("m")) return name.slice(0, -1) + "ns";
+  return name + "s";
+}
+
+/**
+ * Format a quantity and unit for display, pluralizing when needed.
+ *
+ * Examples: "2 Embalagens", "1 Quilograma", "3 Unidades"
  */
 export function formatQuantity(
   quantity: number,
-  unitAbbreviation: string
+  unitName: string
 ): string {
-  return `${quantity} ${unitAbbreviation}`;
+  const displayUnit = quantity > 1 ? pluralizePortuguese(unitName) : unitName;
+  return `${quantity} ${displayUnit}`;
 }

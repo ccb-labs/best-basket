@@ -43,7 +43,7 @@ const mockItem: ListItemWithCategory = {
   category_id: "cat-1",
   checked: false,
   categories: { name: "Beverages" },
-  units: { abbreviation: "L" },
+  units: { abbreviation: "L", name: "Litro", gender: "m" as const },
 };
 
 const mockItemNoCategory: ListItemWithCategory = {
@@ -56,7 +56,7 @@ const mockItemNoCategory: ListItemWithCategory = {
   category_id: null,
   checked: false,
   categories: null,
-  units: { abbreviation: "Un" },
+  units: { abbreviation: "Un", name: "Unidade", gender: "f" as const },
 };
 
 const mockCategories: Category[] = [
@@ -85,7 +85,7 @@ describe("ListItemCard", () => {
     );
 
     expect(screen.getByText("Milk")).toBeInTheDocument();
-    expect(screen.getByText("2 L")).toBeInTheDocument();
+    expect(screen.getByText("2 Litros")).toBeInTheDocument();
     expect(screen.getByText("Beverages")).toBeInTheDocument();
   });
 
@@ -101,7 +101,7 @@ describe("ListItemCard", () => {
     );
 
     expect(screen.getByText("Bread")).toBeInTheDocument();
-    expect(screen.getByText("1 Un")).toBeInTheDocument();
+    expect(screen.getByText("1 Unidade")).toBeInTheDocument();
     // No category badge should be shown
     expect(screen.queryByText("Beverages")).not.toBeInTheDocument();
   });

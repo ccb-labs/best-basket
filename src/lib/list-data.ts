@@ -65,7 +65,7 @@ export async function fetchListPageData(
     await Promise.all([
       supabase
         .from("list_items")
-        .select("*, categories(name), units(abbreviation)")
+        .select("*, categories(name), units(abbreviation, name, gender)")
         .eq("list_id", listId)
         .order("name"),
       supabase

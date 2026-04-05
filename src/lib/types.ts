@@ -35,6 +35,7 @@ export type Unit = {
   id: string;
   abbreviation: string;
   name: string;
+  gender: "m" | "f";
 };
 
 /** A list item as stored in the list_items table */
@@ -58,7 +59,7 @@ export type ListItem = {
  */
 export type ListItemWithCategory = ListItem & {
   categories: { name: string } | null;
-  units: { abbreviation: string };
+  units: { abbreviation: string; name: string; gender: "m" | "f" };
 };
 
 /** A store as stored in the stores table */

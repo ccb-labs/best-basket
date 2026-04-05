@@ -19,7 +19,7 @@ const mockItems: ListItemWithCategory[] = [
     category_id: "cat-1",
     checked: false,
     categories: { name: "Beverages" },
-    units: { abbreviation: "L" },
+    units: { abbreviation: "L", name: "Litro", gender: "m" as const },
   },
   {
     id: "item-2",
@@ -31,7 +31,7 @@ const mockItems: ListItemWithCategory[] = [
     category_id: "cat-2",
     checked: false,
     categories: { name: "Fruits" },
-    units: { abbreviation: "Kg" },
+    units: { abbreviation: "Kg", name: "Quilograma", gender: "m" as const },
   },
   {
     id: "item-3",
@@ -43,7 +43,7 @@ const mockItems: ListItemWithCategory[] = [
     category_id: null,
     checked: true,
     categories: null,
-    units: { abbreviation: "Un" },
+    units: { abbreviation: "Un", name: "Unidade", gender: "f" as const },
   },
 ];
 

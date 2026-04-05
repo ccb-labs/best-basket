@@ -14,7 +14,7 @@
 
 import { useState, useRef, useCallback, useEffect } from "react";
 import { parseLiveCommand, findMatchingItem } from "@/lib/live-command-parser";
-import { formatQuantity } from "@/lib/list-helpers";
+import { formatQuantity, pluralizePortuguese } from "@/lib/list-helpers";
 import type { ListItemWithCategory } from "@/lib/types";
 
 // -- Types --
@@ -112,14 +112,26 @@ function speak(text: string): Promise<void> {
   });
 }
 
+/**
+ * Converts quantity 1 or 2 to the correct gendered Portuguese word.
+ * "um/uma" (1) and "dois/duas" (2) depend on the unit's gender.
+ * Quantities 3+ have no gender variation — use the digit.
+ */
+function genderedQuantity(quantity: number, gender: "m" | "f"): string {
+  if (quantity === 1) return gender === "f" ? "uma" : "um";
+  if (quantity === 2) return gender === "f" ? "duas" : "dois";
+  return String(quantity);
+}
+
 /** Builds the announcement text for an item in Portuguese.
- * Examples: "2 Kg de Amendoim", "3 Un de Leite", "Arroz" (qty 1, Un) */
+ * Uses gendered numbers (uma/duas for feminine, um/dois for masculine).
+ * Examples: "duas Unidades de Espinafre", "um Quilograma de Arroz" */
 function buildAnnouncement(item: ListItemWithCategory): string {
-  if (item.quantity > 1 || item.units.abbreviation !== "Un") {
-    const qty = formatQuantity(item.quantity, item.units.abbreviation);
-    return `${qty} de ${item.name}`;
-  }
-  return item.name;
+  const qty = genderedQuantity(item.quantity, item.units.gender);
+  const unitName = item.quantity > 1
+    ? pluralizePortuguese(item.units.name)
+    : item.units.name;
+  return `${qty} ${unitName} de ${item.name}`;
 }
 
 // -- Main hook --

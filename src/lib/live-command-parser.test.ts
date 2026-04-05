@@ -129,7 +129,7 @@ const makeItem = (
   category_id: null,
   checked,
   categories: null,
-  units: { abbreviation: "Un" },
+  units: { abbreviation: "Un", name: "Unidade", gender: "f" as const },
 });
 
 const mockItems: ListItemWithCategory[] = [

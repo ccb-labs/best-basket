@@ -2,10 +2,10 @@
  * Microphone SVG icon used by voice input features
  * (adding items and voice-guided shopping).
  */
-export function MicrophoneIcon() {
+export function MicrophoneIcon({ className = "h-5 w-5" }: { className?: string } = {}) {
   return (
     <svg
-      className="h-5 w-5"
+      className={className}
       fill="none"
       viewBox="0 0 24 24"
       stroke="currentColor"

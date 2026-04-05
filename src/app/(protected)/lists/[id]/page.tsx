@@ -100,12 +100,20 @@ export default async function ListDetailPage({
       <div className="mt-2 flex flex-wrap items-center justify-center gap-2">
           {/* Regular list buttons — shopping and compare */}
           {!list.is_template && items.length > 0 && (
-            <Link
-              href={`/lists/${id}/shop`}
-              className="rounded-md bg-green-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-green-700"
-            >
-              Start Shopping
-            </Link>
+            <>
+              <Link
+                href={`/lists/${id}/shop`}
+                className="rounded-md bg-green-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-green-700"
+              >
+                Start Shopping
+              </Link>
+              <Link
+                href={`/lists/${id}/shop?mode=live`}
+                className="rounded-md bg-purple-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-purple-700"
+              >
+                Start Live Shopping
+              </Link>
+            </>
           )}
 
           {!list.is_template && pricesByProduct.size > 0 && (

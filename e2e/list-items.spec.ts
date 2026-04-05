@@ -74,7 +74,7 @@ test.describe.serial("List items CRUD", () => {
     await quantityInput.clear();
     await quantityInput.fill("2");
 
-    await page.locator('input[name="unit"]').first().fill("L");
+    await page.locator('select[name="unit_id"]').first().selectOption({ label: "L" });
 
     // Select a category from the dropdown
     await page.locator('select[name="category_id"]').first().selectOption({

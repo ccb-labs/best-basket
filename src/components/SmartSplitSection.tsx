@@ -12,12 +12,12 @@
 
 import type { SmartSplitResult, SmartSplitItem, UnpricedItem } from "@/lib/comparison";
 
-/** Formats quantity and unit for display, e.g., "(2 kg)" or "(3)" */
+/** Formats quantity and unit for display, e.g., "(2 Kg)" or "(1 Un)" */
 function QuantityLabel({ item }: { item: Pick<SmartSplitItem | UnpricedItem, "quantity" | "unit"> }) {
-  if (item.quantity <= 1 && !item.unit) return null;
+  if (item.quantity <= 1 && item.unit === "Un") return null;
   return (
     <span className="ml-1">
-      ({item.quantity}{item.unit ? ` ${item.unit}` : ""})
+      ({item.quantity} {item.unit})
     </span>
   );
 }

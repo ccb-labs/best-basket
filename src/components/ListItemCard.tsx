@@ -11,12 +11,13 @@ import { useState, useActionState, useRef } from "react";
 import { SubmitButton } from "@/components/SubmitButton";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { formatQuantity } from "@/lib/list-helpers";
-import type { ListItemWithCategory, Category } from "@/lib/types";
+import type { ListItemWithCategory, Category, Unit } from "@/lib/types";
 import type { ActionResult } from "@/app/(protected)/actions";
 
 export function ListItemCard({
   item,
   categories,
+  units,
   updateAction,
   deleteAction,
 }: {
@@ -24,6 +25,8 @@ export function ListItemCard({
   item: ListItemWithCategory;
   /** Available categories for the edit dropdown */
   categories: Category[];
+  /** Available units for the unit dropdown */
+  units: Unit[];
   /** Server Action to update the item */
   updateAction: (
     previousState: ActionResult,
@@ -53,7 +56,7 @@ export function ListItemCard({
     error: null,
   });
 
-  const quantityDisplay = formatQuantity(item.quantity, item.unit);
+  const quantityDisplay = formatQuantity(item.quantity, item.units.abbreviation);
 
   const error = updateState.error || deleteState.error;
 
@@ -81,13 +84,17 @@ export function ListItemCard({
               step="any"
               className="w-20 rounded-md border border-zinc-300 px-3 py-1.5 text-sm focus:border-zinc-500 focus:outline-none"
             />
-            <input
-              type="text"
-              name="unit"
-              defaultValue={item.unit ?? ""}
-              placeholder="kg, L, pack..."
-              className="w-28 rounded-md border border-zinc-300 px-3 py-1.5 text-sm focus:border-zinc-500 focus:outline-none"
-            />
+            <select
+              name="unit_id"
+              defaultValue={item.unit_id}
+              className="w-24 rounded-md border border-zinc-300 px-3 py-1.5 text-sm text-zinc-700 focus:border-zinc-500 focus:outline-none"
+            >
+              {units.map((u) => (
+                <option key={u.id} value={u.id}>
+                  {u.abbreviation}
+                </option>
+              ))}
+            </select>
             <select
               name="category_id"
               defaultValue={item.category_id ?? ""}

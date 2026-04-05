@@ -147,7 +147,7 @@ export function LiveShoppingMode({
               </p>
               {/* Quantity */}
               <p className="mt-1 text-sm text-zinc-500">
-                {formatQuantity(currentItem.quantity, currentItem.unit)}
+                {formatQuantity(currentItem.quantity, currentItem.units.abbreviation)}
               </p>
               {/* Best deal price */}
               {bestDeal && (

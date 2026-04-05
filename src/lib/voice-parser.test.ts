@@ -22,7 +22,7 @@ describe("parsePortugueseInput", () => {
   it("parses 'meio quilo de'", () => {
     expect(parsePortugueseInput("meio quilo de arroz")).toEqual({
       quantity: 0.5,
-      unit: "kg",
+      unit: "Kg",
       name: "Arroz",
     });
   });
@@ -30,7 +30,7 @@ describe("parsePortugueseInput", () => {
   it("parses 'um quilo de'", () => {
     expect(parsePortugueseInput("um quilo de batatas")).toEqual({
       quantity: 1,
-      unit: "kg",
+      unit: "Kg",
       name: "Batata",
     });
   });
@@ -71,7 +71,7 @@ describe("parsePortugueseInput", () => {
   it("parses 'três pacotes de'", () => {
     expect(parsePortugueseInput("3 pacotes de massa")).toEqual({
       quantity: 3,
-      unit: "pack",
+      unit: "Emb",
       name: "Massa",
     });
   });

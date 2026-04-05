@@ -79,6 +79,7 @@ Tables to create (ask before implementing if unsure):
   - E2E tests require a test user — credentials are in `.env.local`
   - Auth is handled via `storageState` — login happens once in `auth.setup.ts` and is reused
 - **Before every commit**, run relevant unit tests and E2E tests for the changed code
+- **After implementing UI changes**, always run Playwright E2E tests (`npm run test:e2e`) to verify the changes work in the browser before considering the task done
 
 ## Git Workflow
 - **Always create new branches from `main`** — never branch off a feature or fix branch. This avoids duplicate changes appearing in multiple PRs.

@@ -214,7 +214,7 @@ export async function addItem(
   const listId = formData.get("list_id") as string;
   const name = formData.get("name") as string;
   const quantityRaw = formData.get("quantity") as string;
-  const unit = formData.get("unit") as string;
+  const unitId = formData.get("unit_id") as string;
   const categoryId = formData.get("category_id") as string;
 
   if (!name || name.trim().length === 0) {
@@ -274,7 +274,7 @@ export async function addItem(
     product_id: productId,
     name: name.trim(),
     quantity,
-    unit: unit?.trim() || null, // empty string becomes null
+    unit_id: unitId,
     category_id: resolvedCategoryId, // auto-filled from previous usage if not set
   });
 
@@ -301,7 +301,7 @@ export async function updateItem(
   const listId = formData.get("list_id") as string;
   const name = formData.get("name") as string;
   const quantityRaw = formData.get("quantity") as string;
-  const unit = formData.get("unit") as string;
+  const unitId = formData.get("unit_id") as string;
   const categoryId = formData.get("category_id") as string;
 
   if (!name || name.trim().length === 0) {
@@ -339,7 +339,7 @@ export async function updateItem(
       name: name.trim(),
       product_id: productId,
       quantity,
-      unit: unit?.trim() || null,
+      unit_id: unitId,
       category_id: categoryId || null,
     })
     .eq("id", id);
@@ -1200,7 +1200,7 @@ async function copyListItems(
 ): Promise<{ error: string | null }> {
   const { data: sourceItems } = await supabase
     .from("list_items")
-    .select("name, product_id, quantity, unit, category_id")
+    .select("name, product_id, quantity, unit_id, category_id")
     .eq("list_id", sourceListId);
 
   if (sourceItems && sourceItems.length > 0) {
@@ -1209,7 +1209,7 @@ async function copyListItems(
       name: item.name,
       product_id: item.product_id,
       quantity: item.quantity,
-      unit: item.unit,
+      unit_id: item.unit_id,
       category_id: item.category_id,
     }));
 

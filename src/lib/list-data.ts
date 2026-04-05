@@ -16,6 +16,7 @@ import type {
   ShoppingList,
   ListItemWithCategory,
   Category,
+  Unit,
   Store,
   ItemPriceWithStore,
   Discount,
@@ -26,6 +27,7 @@ export type ListPageData = {
   list: ShoppingList;
   items: ListItemWithCategory[];
   categories: Category[];
+  units: Unit[];
   stores: Store[];
   pricesByProduct: Map<string, ItemPriceWithStore[]>;
   allDiscounts: Discount[];
@@ -58,12 +60,12 @@ export async function fetchListPageData(
 
   if (!list) return null;
 
-  // Fetch items, categories, and stores in parallel (independent queries)
-  const [{ data: items }, { data: categories }, { data: stores }] =
+  // Fetch items, categories, units, and stores in parallel (independent queries)
+  const [{ data: items }, { data: categories }, { data: units }, { data: stores }] =
     await Promise.all([
       supabase
         .from("list_items")
-        .select("*, categories(name)")
+        .select("*, categories(name), units(abbreviation)")
         .eq("list_id", listId)
         .order("name"),
       supabase
@@ -71,6 +73,7 @@ export async function fetchListPageData(
         .select("*")
         .or(`user_id.is.null,user_id.eq.${user?.id}`)
         .order("name"),
+      supabase.from("units").select("*").order("name"),
       supabase.from("stores").select("*").order("name"),
     ]);
 
@@ -130,6 +133,7 @@ export async function fetchListPageData(
     list: list as ShoppingList,
     items: (items ?? []) as ListItemWithCategory[],
     categories: (categories ?? []) as Category[],
+    units: (units ?? []) as Unit[],
     stores: (stores ?? []) as Store[],
     pricesByProduct,
     allDiscounts,

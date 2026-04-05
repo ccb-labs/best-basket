@@ -15,10 +15,11 @@ const mockItems: ListItemWithCategory[] = [
     product_id: "product-1",
     name: "Milk",
     quantity: 2,
-    unit: "L",
+    unit_id: "unit-l",
     category_id: "cat-1",
     checked: false,
     categories: { name: "Beverages" },
+    units: { abbreviation: "L" },
   },
   {
     id: "item-2",
@@ -26,10 +27,11 @@ const mockItems: ListItemWithCategory[] = [
     product_id: "product-2",
     name: "Apples",
     quantity: 1,
-    unit: "kg",
+    unit_id: "unit-kg",
     category_id: "cat-2",
     checked: false,
     categories: { name: "Fruits" },
+    units: { abbreviation: "Kg" },
   },
   {
     id: "item-3",
@@ -37,10 +39,11 @@ const mockItems: ListItemWithCategory[] = [
     product_id: "product-3",
     name: "Bread",
     quantity: 1,
-    unit: null,
+    unit_id: "unit-un",
     category_id: null,
     checked: true,
     categories: null,
+    units: { abbreviation: "Un" },
   },
 ];
 

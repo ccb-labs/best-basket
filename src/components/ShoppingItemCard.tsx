@@ -33,7 +33,7 @@ export function ShoppingItemCard({
   /** Called when the user taps the row */
   onToggle: (itemId: string, newChecked: boolean) => void;
 }) {
-  const quantityDisplay = formatQuantity(item.quantity, item.unit);
+  const quantityDisplay = formatQuantity(item.quantity, item.units.abbreviation);
 
   return (
     <button

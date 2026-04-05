@@ -39,13 +39,13 @@ export function groupItemsByCategory(
 }
 
 /**
- * Format a quantity and optional unit for display.
+ * Format a quantity and unit for display.
  *
- * Examples: "2 kg", "1 L", "3" (when no unit)
+ * Examples: "2 Kg", "1 L", "3 Un"
  */
 export function formatQuantity(
   quantity: number,
-  unit: string | null
+  unitAbbreviation: string
 ): string {
-  return unit ? `${quantity} ${unit}` : `${quantity}`;
+  return `${quantity} ${unitAbbreviation}`;
 }

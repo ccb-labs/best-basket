@@ -32,13 +32,19 @@ const WORD_TO_NUMBER: Record<string, number> = {
  * Each entry has a list of spoken variations and the value we store.
  */
 const UNIT_MAP: Record<string, string> = {
-  quilo: "kg",
-  quilos: "kg",
-  kg: "kg",
+  quilo: "Kg",
+  quilos: "Kg",
+  kg: "Kg",
+  grama: "g",
+  gramas: "g",
   litro: "L",
   litros: "L",
-  pacote: "pack",
-  pacotes: "pack",
+  pacote: "Emb",
+  pacotes: "Emb",
+  embalagem: "Emb",
+  embalagens: "Emb",
+  unidade: "Un",
+  unidades: "Un",
 };
 
 export interface ParsedVoiceInput {

@@ -160,6 +160,13 @@ export function LiveShoppingMode({
             {/* Phase indicator */}
             <PhaseIndicator phase={phase} />
 
+            {/* Voice command hint */}
+            {(phase === "listening" || phase === "waiting") && (
+              <p className="text-xs text-zinc-400">
+                Diga &quot;Feito&quot; ou &quot;Próximo&quot;
+              </p>
+            )}
+
             {/* Last command feedback */}
             {visibleCommand && (
               <p className="text-xs text-zinc-400">
@@ -206,6 +213,13 @@ export function LiveShoppingMode({
               className="rounded-md border border-zinc-300 px-5 py-2.5 text-sm font-medium text-zinc-600 hover:bg-zinc-100"
             >
               Skip
+            </button>
+            <button
+              type="button"
+              onClick={handleClose}
+              className="rounded-md border border-red-200 px-5 py-2.5 text-sm font-medium text-red-600 hover:bg-red-50"
+            >
+              Close
             </button>
           </div>
         </div>

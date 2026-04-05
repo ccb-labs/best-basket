@@ -112,12 +112,12 @@ function speak(text: string): Promise<void> {
   });
 }
 
-/** Builds the announcement text for an item */
+/** Builds the announcement text for an item in Portuguese.
+ * Examples: "2 kg de Amendoim", "3 de Leite", "Arroz" (qty 1, no unit) */
 function buildAnnouncement(item: ListItemWithCategory): string {
-  const qty = formatQuantity(item.quantity, item.unit);
-  // formatQuantity returns e.g. "2 kg" or "1" — only append if meaningful
   if (item.quantity > 1 || item.unit) {
-    return `${item.name}, ${qty}`;
+    const qty = formatQuantity(item.quantity, item.unit);
+    return `${qty} de ${item.name}`;
   }
   return item.name;
 }

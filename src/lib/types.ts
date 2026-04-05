@@ -30,6 +30,14 @@ export type Product = {
   name: string;
 };
 
+/** A unit of measurement as stored in the units table */
+export type Unit = {
+  id: string;
+  abbreviation: string;
+  name: string;
+  gender: "m" | "f";
+};
+
 /** A list item as stored in the list_items table */
 export type ListItem = {
   id: string;
@@ -37,7 +45,7 @@ export type ListItem = {
   product_id: string | null; // links to a shared product for price lookup
   name: string;
   quantity: number;
-  unit: string | null;
+  unit_id: string; // references the units table
   category_id: string | null;
   checked: boolean; // Phase 7: whether the item has been checked off while shopping
 };
@@ -51,6 +59,7 @@ export type ListItem = {
  */
 export type ListItemWithCategory = ListItem & {
   categories: { name: string } | null;
+  units: { abbreviation: string; name: string; gender: "m" | "f" };
 };
 
 /** A store as stored in the stores table */

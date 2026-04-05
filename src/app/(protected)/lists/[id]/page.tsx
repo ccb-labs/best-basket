@@ -57,6 +57,7 @@ export default async function ListDetailPage({
     list,
     items,
     categories,
+    units,
     stores,
     pricesByProduct,
     allDiscounts,
@@ -179,6 +180,7 @@ export default async function ListDetailPage({
         <AddItemForm
           listId={id}
           categories={categories}
+          units={units}
           addItemAction={addItem}
           createCategoryAction={createCategory}
         />
@@ -206,6 +208,7 @@ export default async function ListDetailPage({
                       <ListItemCard
                         item={item}
                         categories={categories}
+                        units={units}
                         updateAction={updateItem}
                         deleteAction={deleteItem}
                       />

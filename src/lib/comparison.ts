@@ -14,7 +14,7 @@ import {
   calculateDiscountedPrice,
   getApplicableDiscounts,
 } from "@/lib/discounts";
-import type { Discount, ItemPriceWithStore, ListItem } from "@/lib/types";
+import type { Discount, ItemPriceWithStore, ListItemWithCategory } from "@/lib/types";
 
 // ─── Types ──────────────────────────────────────────────────────────
 
@@ -36,7 +36,7 @@ export type StoreTotalResult = {
 export type SmartSplitItem = {
   itemName: string;
   quantity: number;
-  unit: string | null;
+  unit: string;
   storeName: string;
   storeId: string;
   /** Discounted price per unit */
@@ -49,7 +49,7 @@ export type SmartSplitItem = {
 export type UnpricedItem = {
   itemName: string;
   quantity: number;
-  unit: string | null;
+  unit: string;
 };
 
 /** The full result of a smart split calculation */
@@ -91,7 +91,7 @@ export type SmartSplitResult = {
  * @returns Store totals sorted by total ascending (cheapest first)
  */
 export function calculateStoreTotals(
-  items: ListItem[],
+  items: ListItemWithCategory[],
   pricesByProduct: Map<string, ItemPriceWithStore[]>,
   allDiscounts: Discount[]
 ): StoreTotalResult[] {
@@ -180,7 +180,7 @@ export function calculateStoreTotals(
  * @returns The optimal split with savings info
  */
 export function calculateSmartSplit(
-  items: ListItem[],
+  items: ListItemWithCategory[],
   pricesByProduct: Map<string, ItemPriceWithStore[]>,
   allDiscounts: Discount[],
   storeTotals: StoreTotalResult[]
@@ -194,7 +194,7 @@ export function calculateSmartSplit(
       unpricedItems.push({
         itemName: item.name,
         quantity: Number(item.quantity),
-        unit: item.unit,
+        unit: item.units.abbreviation,
       });
       continue;
     }
@@ -205,7 +205,7 @@ export function calculateSmartSplit(
       unpricedItems.push({
         itemName: item.name,
         quantity: Number(item.quantity),
-        unit: item.unit,
+        unit: item.units.abbreviation,
       });
       continue;
     }
@@ -230,7 +230,7 @@ export function calculateSmartSplit(
       assignments.push({
         itemName: item.name,
         quantity: Number(item.quantity),
-        unit: item.unit,
+        unit: item.units.abbreviation,
         storeName: cheapestPrice.stores.name,
         storeId: cheapestPrice.store_id,
         unitPrice: cheapestDiscounted,

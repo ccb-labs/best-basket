@@ -1,6 +1,6 @@
 import { render, screen, fireEvent } from "@testing-library/react";
 import { ListItemCard } from "./ListItemCard";
-import type { ListItemWithCategory, Category } from "@/lib/types";
+import type { ListItemWithCategory, Category, Unit } from "@/lib/types";
 
 // Mock useActionState — returns [state, formAction]
 // ListItemCard calls useActionState twice: first for update, then for delete
@@ -25,16 +25,25 @@ jest.mock("react-dom", () => ({
   useFormStatus: () => ({ pending: false }),
 }));
 
+const mockUnits: Unit[] = [
+  { id: "unit-emb", abbreviation: "Emb", name: "Embalagem" },
+  { id: "unit-un", abbreviation: "Un", name: "Unidade" },
+  { id: "unit-kg", abbreviation: "Kg", name: "Quilo" },
+  { id: "unit-g", abbreviation: "g", name: "Grama" },
+  { id: "unit-l", abbreviation: "L", name: "Litro" },
+];
+
 const mockItem: ListItemWithCategory = {
   id: "item-1",
   list_id: "list-1",
   product_id: "product-1",
   name: "Milk",
   quantity: 2,
-  unit: "L",
+  unit_id: "unit-l",
   category_id: "cat-1",
   checked: false,
   categories: { name: "Beverages" },
+  units: { abbreviation: "L", name: "Litro", gender: "m" as const },
 };
 
 const mockItemNoCategory: ListItemWithCategory = {
@@ -43,10 +52,11 @@ const mockItemNoCategory: ListItemWithCategory = {
   product_id: "product-2",
   name: "Bread",
   quantity: 1,
-  unit: null,
+  unit_id: "unit-un",
   category_id: null,
   checked: false,
   categories: null,
+  units: { abbreviation: "Un", name: "Unidade", gender: "f" as const },
 };
 
 const mockCategories: Category[] = [
@@ -68,28 +78,30 @@ describe("ListItemCard", () => {
       <ListItemCard
         item={mockItem}
         categories={mockCategories}
+        units={mockUnits}
         updateAction={mockUpdateAction}
         deleteAction={mockDeleteAction}
       />
     );
 
     expect(screen.getByText("Milk")).toBeInTheDocument();
-    expect(screen.getByText("2 L")).toBeInTheDocument();
+    expect(screen.getByText("2 Litros")).toBeInTheDocument();
     expect(screen.getByText("Beverages")).toBeInTheDocument();
   });
 
-  it("renders quantity without unit when unit is null", () => {
+  it("renders quantity with default unit when no special unit", () => {
     render(
       <ListItemCard
         item={mockItemNoCategory}
         categories={mockCategories}
+        units={mockUnits}
         updateAction={mockUpdateAction}
         deleteAction={mockDeleteAction}
       />
     );
 
     expect(screen.getByText("Bread")).toBeInTheDocument();
-    expect(screen.getByText("1")).toBeInTheDocument();
+    expect(screen.getByText("1 Unidade")).toBeInTheDocument();
     // No category badge should be shown
     expect(screen.queryByText("Beverages")).not.toBeInTheDocument();
   });
@@ -99,6 +111,7 @@ describe("ListItemCard", () => {
       <ListItemCard
         item={mockItem}
         categories={mockCategories}
+        units={mockUnits}
         updateAction={mockUpdateAction}
         deleteAction={mockDeleteAction}
       />
@@ -117,6 +130,7 @@ describe("ListItemCard", () => {
       <ListItemCard
         item={mockItem}
         categories={mockCategories}
+        units={mockUnits}
         updateAction={mockUpdateAction}
         deleteAction={mockDeleteAction}
       />
@@ -127,7 +141,6 @@ describe("ListItemCard", () => {
     // Should show inputs with current values
     expect(screen.getByDisplayValue("Milk")).toBeInTheDocument();
     expect(screen.getByDisplayValue("2")).toBeInTheDocument();
-    expect(screen.getByDisplayValue("L")).toBeInTheDocument();
 
     // Should show Save and Cancel buttons
     expect(screen.getByRole("button", { name: "Save" })).toBeInTheDocument();
@@ -141,6 +154,7 @@ describe("ListItemCard", () => {
       <ListItemCard
         item={mockItem}
         categories={mockCategories}
+        units={mockUnits}
         updateAction={mockUpdateAction}
         deleteAction={mockDeleteAction}
       />
@@ -164,6 +178,7 @@ describe("ListItemCard", () => {
       <ListItemCard
         item={mockItem}
         categories={mockCategories}
+        units={mockUnits}
         updateAction={mockUpdateAction}
         deleteAction={mockDeleteAction}
       />
@@ -183,6 +198,7 @@ describe("ListItemCard", () => {
       <ListItemCard
         item={mockItem}
         categories={mockCategories}
+        units={mockUnits}
         updateAction={mockUpdateAction}
         deleteAction={mockDeleteAction}
       />
@@ -190,8 +206,11 @@ describe("ListItemCard", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Edit Milk" }));
 
-    const select = screen.getByRole("combobox");
-    const options = select.querySelectorAll("option");
+    // There are 2 dropdowns in edit mode: unit and category
+    const selects = screen.getAllByRole("combobox");
+    // The category dropdown is the second one
+    const categorySelect = selects[1];
+    const options = categorySelect.querySelectorAll("option");
 
     expect(options).toHaveLength(3); // "No category" + 2 categories
     expect(options[0]).toHaveTextContent("No category");

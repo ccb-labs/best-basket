@@ -22,13 +22,14 @@ import { createClient } from "@/lib/supabase/client";
 import { useVoiceInput } from "@/hooks/useVoiceInput";
 import { parsePortugueseInput } from "@/lib/voice-parser";
 import type { ActionResult } from "@/app/(protected)/actions";
-import type { Category, Product } from "@/lib/types";
+import type { Category, Product, Unit } from "@/lib/types";
 
 const MIN_SEARCH_LENGTH = 2;
 
 export function AddItemForm({
   listId,
   categories,
+  units,
   addItemAction,
   createCategoryAction,
 }: {
@@ -36,6 +37,8 @@ export function AddItemForm({
   listId: string;
   /** Available categories (default + user-created) for the dropdown */
   categories: Category[];
+  /** Available units for the unit dropdown */
+  units: Unit[];
   /** Server Action to add the item */
   addItemAction: (
     previousState: ActionResult,
@@ -54,7 +57,9 @@ export function AddItemForm({
   // Name, quantity, and unit are all controlled so voice input can fill them.
   const [nameValue, setNameValue] = useState("");
   const [quantityValue, setQuantityValue] = useState("1");
-  const [unitValue, setUnitValue] = useState("");
+  // Default unit is "Un" (Unidade)
+  const defaultUnitId = units.find((u) => u.abbreviation === "Un")?.id ?? units[0]?.id ?? "";
+  const [unitValue, setUnitValue] = useState(defaultUnitId);
 
   // ─── Autocomplete state ───
   const [suggestions, setSuggestions] = useState<Product[]>([]);
@@ -71,7 +76,11 @@ export function AddItemForm({
         const parsed = parsePortugueseInput(transcript);
         setNameValue(parsed.name);
         setQuantityValue(String(parsed.quantity));
-        setUnitValue(parsed.unit ?? "");
+        // Map the parsed abbreviation (e.g. "Kg") to the unit ID
+        const matchedUnit = parsed.unit
+          ? units.find((u) => u.abbreviation === parsed.unit)
+          : null;
+        setUnitValue(matchedUnit?.id ?? defaultUnitId);
       },
     });
 
@@ -112,7 +121,7 @@ export function AddItemForm({
         formRef.current?.reset();
         setNameValue("");
         setQuantityValue("1");
-        setUnitValue("");
+        setUnitValue(defaultUnitId);
         setSuggestions([]);
       }
       return result;
@@ -204,14 +213,18 @@ export function AddItemForm({
             step="any"
             className="w-20 rounded-md border border-zinc-300 px-3 py-2 text-sm focus:border-zinc-500 focus:outline-none"
           />
-          <input
-            type="text"
-            name="unit"
+          <select
+            name="unit_id"
             value={unitValue}
             onChange={(e) => setUnitValue(e.target.value)}
-            placeholder="kg, L, pack..."
-            className="w-28 rounded-md border border-zinc-300 px-3 py-2 text-sm focus:border-zinc-500 focus:outline-none"
-          />
+            className="w-24 rounded-md border border-zinc-300 px-3 py-2 text-sm text-zinc-700 focus:border-zinc-500 focus:outline-none"
+          >
+            {units.map((u) => (
+              <option key={u.id} value={u.id}>
+                {u.abbreviation}
+              </option>
+            ))}
+          </select>
           <select
             name="category_id"
             className="flex-1 rounded-md border border-zinc-300 px-3 py-2 text-sm text-zinc-700 focus:border-zinc-500 focus:outline-none"

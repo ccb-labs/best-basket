@@ -1,6 +1,6 @@
 import { render, screen, fireEvent } from "@testing-library/react";
 import { AddItemForm } from "./AddItemForm";
-import type { Category } from "@/lib/types";
+import type { Category, Unit } from "@/lib/types";
 
 // Mock useActionState — returns [state, formAction]
 jest.mock("react", () => ({
@@ -34,6 +34,14 @@ const mockCategories: Category[] = [
   { id: "cat-3", user_id: "user-1", name: "My Custom" },
 ];
 
+const mockUnits: Unit[] = [
+  { id: "unit-emb", abbreviation: "Emb", name: "Embalagem" },
+  { id: "unit-un", abbreviation: "Un", name: "Unidade" },
+  { id: "unit-kg", abbreviation: "Kg", name: "Quilo" },
+  { id: "unit-g", abbreviation: "g", name: "Grama" },
+  { id: "unit-l", abbreviation: "L", name: "Litro" },
+];
+
 const mockAddItemAction = jest.fn();
 const mockCreateCategoryAction = jest.fn();
 
@@ -47,6 +55,7 @@ describe("AddItemForm", () => {
       <AddItemForm
         listId="list-1"
         categories={mockCategories}
+        units={mockUnits}
         addItemAction={mockAddItemAction}
         createCategoryAction={mockCreateCategoryAction}
       />
@@ -56,12 +65,9 @@ describe("AddItemForm", () => {
     expect(screen.getByPlaceholderText("Item name...")).toBeInTheDocument();
     // Quantity input (default value 1)
     expect(screen.getByDisplayValue("1")).toBeInTheDocument();
-    // Unit input
-    expect(
-      screen.getByPlaceholderText("kg, L, pack...")
-    ).toBeInTheDocument();
-    // Category dropdown
-    expect(screen.getByRole("combobox")).toBeInTheDocument();
+    // Unit dropdown and Category dropdown
+    const selects = screen.getAllByRole("combobox");
+    expect(selects).toHaveLength(2);
     // Submit button
     expect(
       screen.getByRole("button", { name: "Add item" })
@@ -73,13 +79,16 @@ describe("AddItemForm", () => {
       <AddItemForm
         listId="list-1"
         categories={mockCategories}
+        units={mockUnits}
         addItemAction={mockAddItemAction}
         createCategoryAction={mockCreateCategoryAction}
       />
     );
 
-    const select = screen.getByRole("combobox");
-    const options = select.querySelectorAll("option");
+    // There are 2 dropdowns: unit and category
+    const selects = screen.getAllByRole("combobox");
+    const categorySelect = selects[1];
+    const options = categorySelect.querySelectorAll("option");
 
     // "No category" + 3 categories = 4 options
     expect(options).toHaveLength(4);
@@ -94,6 +103,7 @@ describe("AddItemForm", () => {
       <AddItemForm
         listId="list-1"
         categories={mockCategories}
+        units={mockUnits}
         addItemAction={mockAddItemAction}
         createCategoryAction={mockCreateCategoryAction}
       />
@@ -109,6 +119,7 @@ describe("AddItemForm", () => {
       <AddItemForm
         listId="list-1"
         categories={mockCategories}
+        units={mockUnits}
         addItemAction={mockAddItemAction}
         createCategoryAction={mockCreateCategoryAction}
       />
@@ -133,6 +144,7 @@ describe("AddItemForm", () => {
       <AddItemForm
         listId="list-1"
         categories={mockCategories}
+        units={mockUnits}
         addItemAction={mockAddItemAction}
         createCategoryAction={mockCreateCategoryAction}
       />
@@ -148,6 +160,7 @@ describe("AddItemForm", () => {
       <AddItemForm
         listId="list-1"
         categories={mockCategories}
+        units={mockUnits}
         addItemAction={mockAddItemAction}
         createCategoryAction={mockCreateCategoryAction}
       />
@@ -164,6 +177,7 @@ describe("AddItemForm", () => {
       <AddItemForm
         listId="list-1"
         categories={mockCategories}
+        units={mockUnits}
         addItemAction={mockAddItemAction}
         createCategoryAction={mockCreateCategoryAction}
       />

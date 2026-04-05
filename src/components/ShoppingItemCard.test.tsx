@@ -9,10 +9,11 @@ const mockItem: ListItemWithCategory = {
   product_id: "product-1",
   name: "Milk",
   quantity: 2,
-  unit: "L",
+  unit_id: "unit-l",
   category_id: "cat-1",
   checked: false,
   categories: { name: "Beverages" },
+  units: { abbreviation: "L", name: "Litro", gender: "m" as const },
 };
 
 const mockBestDeal: BestDealInfo = {
@@ -34,14 +35,14 @@ describe("ShoppingItemCard", () => {
     );
 
     expect(screen.getByText("Milk")).toBeInTheDocument();
-    expect(screen.getByText("2 L")).toBeInTheDocument();
+    expect(screen.getByText("2 Litros")).toBeInTheDocument();
   });
 
-  it("renders quantity without unit when unit is null", () => {
-    const itemNoUnit = { ...mockItem, unit: null };
+  it("renders quantity with default unit (Unidade)", () => {
+    const itemDefaultUnit = { ...mockItem, unit_id: "unit-un", units: { abbreviation: "Un", name: "Unidade", gender: "f" as const } };
     render(
       <ShoppingItemCard
-        item={itemNoUnit}
+        item={itemDefaultUnit}
         checked={false}
         bestDeal={null}
         showPrices={false}
@@ -49,7 +50,7 @@ describe("ShoppingItemCard", () => {
       />
     );
 
-    expect(screen.getByText("2")).toBeInTheDocument();
+    expect(screen.getByText("2 Unidades")).toBeInTheDocument();
   });
 
   it("shows best deal info when showPrices is true", () => {

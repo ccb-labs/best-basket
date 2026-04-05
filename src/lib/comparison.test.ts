@@ -2,20 +2,22 @@ import {
   calculateStoreTotals,
   calculateSmartSplit,
 } from "./comparison";
-import type { Discount, ItemPriceWithStore, ListItem } from "./types";
+import type { Discount, ItemPriceWithStore, ListItemWithCategory } from "./types";
 
 // ─── Helper factories ───────────────────────────────────────────────
 
-function makeItem(overrides: Partial<ListItem> = {}): ListItem {
+function makeItem(overrides: Partial<ListItemWithCategory> = {}): ListItemWithCategory {
   return {
     id: "item1",
     list_id: "list1",
     product_id: "prod1",
     name: "Milk",
     quantity: 1,
-    unit: null,
+    unit_id: "unit-un",
     category_id: null,
     checked: false,
+    categories: null,
+    units: { abbreviation: "Un", name: "Unidade", gender: "f" as const },
     ...overrides,
   };
 }

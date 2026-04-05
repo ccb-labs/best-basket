@@ -19,6 +19,7 @@ import { useOptimistic, useTransition, useState, useActionState, useRef } from "
 import { useRouter } from "next/navigation";
 import { ShoppingProgressBar } from "@/components/ShoppingProgressBar";
 import { ShoppingItemCard } from "@/components/ShoppingItemCard";
+import { LiveShoppingMode } from "@/components/LiveShoppingMode";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { groupItemsByCategory } from "@/lib/list-helpers";
 import type { BestDealInfo } from "@/lib/types";
@@ -32,6 +33,7 @@ export function ShoppingList({
   toggleAction,
   uncheckAllAction,
   deleteAction,
+  initialLiveMode = false,
 }: {
   /** The shopping list ID */
   listId: string;
@@ -52,9 +54,12 @@ export function ShoppingList({
     previousState: ActionResult,
     formData: FormData
   ) => Promise<ActionResult>;
+  /** Whether to start in live shopping mode (from URL param) */
+  initialLiveMode?: boolean;
 }) {
   const router = useRouter();
   const [showPrices, setShowPrices] = useState(true);
+  const [liveMode, setLiveMode] = useState(initialLiveMode);
   const [, startTransition] = useTransition();
   const deleteFormRef = useRef<HTMLFormElement>(null);
   const { requestConfirm, confirmDialog } = useConfirm();
@@ -122,6 +127,18 @@ export function ShoppingList({
   const sortedGroups = groupItemsByCategory(remainingItems);
   const hasPrices = Object.keys(bestDeals).length > 0;
 
+  // Live shopping overlay — renders on top of everything when active
+  if (liveMode) {
+    return (
+      <LiveShoppingMode
+        items={optimisticItems}
+        bestDeals={bestDeals}
+        onToggle={handleToggle}
+        onClose={() => setLiveMode(false)}
+      />
+    );
+  }
+
   return (
     <div className="flex flex-col gap-4">
       {/* Progress bar */}
@@ -129,6 +146,17 @@ export function ShoppingList({
         checkedCount={doneItems.length}
         totalCount={optimisticItems.length}
       />
+
+      {/* Start Live Shopping button — only when there are unchecked items */}
+      {remainingItems.length > 0 && (
+        <button
+          type="button"
+          onClick={() => setLiveMode(true)}
+          className="w-full rounded-md border border-purple-200 bg-purple-50 px-4 py-2 text-sm font-medium text-purple-700 hover:bg-purple-100"
+        >
+          Start Live Shopping
+        </button>
+      )}
 
       {/* Price toggle — only shown if there are prices to display */}
       {hasPrices && (

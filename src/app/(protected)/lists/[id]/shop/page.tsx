@@ -23,10 +23,13 @@ import {
  */
 export default async function ShopPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ mode?: string }>;
 }) {
   const { id } = await params;
+  const { mode } = await searchParams;
 
   // Reuse the shared data fetching helper
   const data = await fetchListPageData(id);
@@ -97,6 +100,7 @@ export default async function ShopPage({
             toggleAction={toggleItemChecked}
             uncheckAllAction={uncheckAllItems}
             deleteAction={deleteList}
+            initialLiveMode={mode === "live"}
           />
         </div>
       )}

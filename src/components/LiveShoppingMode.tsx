@@ -20,11 +20,13 @@ import type { ListItemWithCategory, BestDealInfo } from "@/lib/types";
 export function LiveShoppingMode({
   items,
   bestDeals,
+  categorySortByName,
   onToggle,
   onClose,
 }: {
   items: ListItemWithCategory[];
   bestDeals: Record<string, BestDealInfo>;
+  categorySortByName?: Record<string, number>;
   onToggle: (itemId: string, checked: boolean) => void;
   onClose: () => void;
 }) {
@@ -39,7 +41,7 @@ export function LiveShoppingMode({
     manualCheck,
     manualSkip,
     retryListen,
-  } = useLiveShopping({ items, onToggle, onClose });
+  } = useLiveShopping({ items, categorySortByName, onToggle, onClose });
 
   // Auto-clear the "last command" feedback after 2 seconds
   const [visibleCommand, setVisibleCommand] = useState<string | null>(null);
@@ -187,8 +189,9 @@ export function LiveShoppingMode({
       {/* Manual fallback buttons — always visible when active */}
       {phase !== "idle" && (
         <div className="border-t border-zinc-200 px-4 py-4">
-          <div className="flex items-center justify-center gap-3">
-            {/* Tap to listen — prominent when in waiting phase */}
+          <div className="flex flex-col items-center gap-3">
+            {/* Tap to listen — on its own row so it doesn't shift the
+                buttons below when it appears/disappears */}
             {phase === "waiting" && (
               <button
                 type="button"
@@ -200,27 +203,29 @@ export function LiveShoppingMode({
               </button>
             )}
 
-            <button
-              type="button"
-              onClick={manualCheck}
-              className="rounded-md bg-green-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-green-700"
-            >
-              Check
-            </button>
-            <button
-              type="button"
-              onClick={manualSkip}
-              className="rounded-md border border-zinc-300 px-5 py-2.5 text-sm font-medium text-zinc-600 hover:bg-zinc-100"
-            >
-              Skip
-            </button>
-            <button
-              type="button"
-              onClick={handleClose}
-              className="rounded-md border border-red-200 px-5 py-2.5 text-sm font-medium text-red-600 hover:bg-red-50"
-            >
-              Close
-            </button>
+            <div className="flex items-center justify-center gap-3">
+              <button
+                type="button"
+                onClick={manualCheck}
+                className="rounded-md bg-green-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-green-700"
+              >
+                Check
+              </button>
+              <button
+                type="button"
+                onClick={manualSkip}
+                className="rounded-md border border-zinc-300 px-5 py-2.5 text-sm font-medium text-zinc-600 hover:bg-zinc-100"
+              >
+                Skip
+              </button>
+              <button
+                type="button"
+                onClick={handleClose}
+                className="rounded-md border border-red-200 px-5 py-2.5 text-sm font-medium text-red-600 hover:bg-red-50"
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}

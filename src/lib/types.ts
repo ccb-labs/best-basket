@@ -127,6 +127,14 @@ export type SharedList = {
   owner_email: string;
 };
 
+/** A per-list custom category display order */
+export type ListCategorySortOrder = {
+  id: string;
+  list_id: string;
+  category_id: string;
+  sort_order: number;
+};
+
 /** Best deal info for an item from the smart split calculation */
 export type BestDealInfo = {
   storeName: string;

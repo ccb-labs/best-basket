@@ -9,6 +9,7 @@ import { EmptyItemState } from "@/components/EmptyItemState";
 import { ShareListSection } from "@/components/ShareListSection";
 import { SubmitButton } from "@/components/SubmitButton";
 import { ActionFormButton } from "@/components/ActionFormButton";
+import { CategorySortEditor } from "@/components/CategorySortEditor";
 import {
   addItem,
   updateItem,
@@ -24,6 +25,7 @@ import {
   unshareList,
   saveAsTemplate,
   createListFromTemplate,
+  saveCategorySortOrder,
 } from "@/app/(protected)/actions";
 import { groupItemsByCategory } from "@/lib/list-helpers";
 
@@ -61,6 +63,7 @@ export default async function ListDetailPage({
     stores,
     pricesByProduct,
     allDiscounts,
+    categorySortByName,
     isOwner,
   } = data;
 
@@ -76,7 +79,19 @@ export default async function ListDetailPage({
   }
 
   // Group items by category name so we can render them in sections
-  const sortedGroups = groupItemsByCategory(items);
+  const sortedGroups = groupItemsByCategory(items, categorySortByName);
+
+  // Build the list of categories actually used in this list (for the reorder UI).
+  // We need both the category ID and name so the editor can save by ID.
+  const usedCategories = items.reduce<{ id: string; name: string }[]>(
+    (acc, item) => {
+      if (item.category_id && item.categories && !acc.some((c) => c.id === item.category_id)) {
+        acc.push({ id: item.category_id, name: item.categories.name });
+      }
+      return acc;
+    },
+    []
+  );
 
   return (
     <div>
@@ -185,6 +200,18 @@ export default async function ListDetailPage({
           createCategoryAction={createCategory}
         />
       </div>
+
+      {/* Category reorder editor — only when there are categorized items */}
+      {usedCategories.length > 1 && (
+        <div className="mt-4">
+          <CategorySortEditor
+            listId={id}
+            usedCategories={usedCategories}
+            currentSortOrder={categorySortByName}
+            saveAction={saveCategorySortOrder}
+          />
+        </div>
+      )}
 
       {/* List items grouped by category, or empty state */}
       <div className="mt-6">

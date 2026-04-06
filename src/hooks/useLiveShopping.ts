@@ -14,7 +14,7 @@
 
 import { useState, useRef, useCallback, useEffect } from "react";
 import { parseLiveCommand, findMatchingItem } from "@/lib/live-command-parser";
-import { formatQuantity, pluralizePortuguese } from "@/lib/list-helpers";
+import { formatQuantity, pluralizePortuguese, compareCategoryNames } from "@/lib/list-helpers";
 import type { ListItemWithCategory } from "@/lib/types";
 
 // -- Types --
@@ -138,10 +138,12 @@ function buildAnnouncement(item: ListItemWithCategory): string {
 
 export function useLiveShopping({
   items,
+  categorySortByName,
   onToggle,
   onClose,
 }: {
   items: ListItemWithCategory[];
+  categorySortByName?: Record<string, number>;
   onToggle: (itemId: string, checked: boolean) => void;
   onClose: () => void;
 }) {
@@ -161,8 +163,15 @@ export function useLiveShopping({
     phaseRef.current = phase;
   }, [phase]);
 
-  // Derive unchecked items
-  const uncheckedItems = items.filter((i) => !i.checked);
+  // Derive unchecked items, sorted by category order so live shopping
+  // presents items category-by-category in the user's custom order
+  const uncheckedItems = items.filter((i) => !i.checked).sort((a, b) =>
+    compareCategoryNames(
+      a.categories?.name ?? "Uncategorized",
+      b.categories?.name ?? "Uncategorized",
+      categorySortByName
+    )
+  );
 
   // Current item: first unchecked not in the skip set
   const currentItem =
@@ -288,7 +297,15 @@ export function useLiveShopping({
       setPhase("processing");
 
       const command = parseLiveCommand(transcript);
-      const unchecked = items.filter((i) => !i.checked);
+      // Must apply the same category sort as uncheckedItems so the
+      // "next item" picked here matches what the UI will display
+      const unchecked = items.filter((i) => !i.checked).sort((a, b) =>
+        compareCategoryNames(
+          a.categories?.name ?? "Uncategorized",
+          b.categories?.name ?? "Uncategorized",
+          categorySortByName
+        )
+      );
 
       switch (command.type) {
         case "check": {
@@ -398,6 +415,7 @@ export function useLiveShopping({
   }, [
     currentItem,
     items,
+    categorySortByName,
     skippedIds,
     onToggle,
     onClose,

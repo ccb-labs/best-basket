@@ -20,6 +20,7 @@ import type {
   Store,
   ItemPriceWithStore,
   Discount,
+  ListCategorySortOrder,
 } from "@/lib/types";
 
 /** Everything both pages need about a shopping list */
@@ -31,6 +32,8 @@ export type ListPageData = {
   stores: Store[];
   pricesByProduct: Map<string, ItemPriceWithStore[]>;
   allDiscounts: Discount[];
+  /** Custom category display order for this list (category name → position) */
+  categorySortByName: Record<string, number>;
   /** True if the current user owns this list, false if it's shared with them */
   isOwner: boolean;
 };
@@ -60,22 +63,32 @@ export async function fetchListPageData(
 
   if (!list) return null;
 
-  // Fetch items, categories, units, and stores in parallel (independent queries)
-  const [{ data: items }, { data: categories }, { data: units }, { data: stores }] =
-    await Promise.all([
-      supabase
-        .from("list_items")
-        .select("*, categories(name), units(abbreviation, name, gender)")
-        .eq("list_id", listId)
-        .order("name"),
-      supabase
-        .from("categories")
-        .select("*")
-        .or(`user_id.is.null,user_id.eq.${user?.id}`)
-        .order("name"),
-      supabase.from("units").select("*").order("name"),
-      supabase.from("stores").select("*").order("name"),
-    ]);
+  // Fetch items, categories, units, stores, and sort order in parallel
+  const [
+    { data: items },
+    { data: categories },
+    { data: units },
+    { data: stores },
+    { data: sortOrderRows },
+  ] = await Promise.all([
+    supabase
+      .from("list_items")
+      .select("*, categories(name), units(abbreviation, name, gender)")
+      .eq("list_id", listId)
+      .order("name"),
+    supabase
+      .from("categories")
+      .select("*")
+      .or(`user_id.is.null,user_id.eq.${user?.id}`)
+      .order("name"),
+    supabase.from("units").select("*").order("name"),
+    supabase.from("stores").select("*").order("name"),
+    supabase
+      .from("list_category_sort_order")
+      .select("*")
+      .eq("list_id", listId)
+      .order("sort_order"),
+  ]);
 
   // Collect unique product IDs from the items (only items with a product link)
   const productIds = (items ?? [])
@@ -129,6 +142,20 @@ export async function fetchListPageData(
     ...((storeDiscounts ?? []) as Discount[]),
   ];
 
+  // Build a category name → sort_order lookup from the per-list sort order rows.
+  // We join sort order rows (which store category_id) with the categories list
+  // to get category names, since groupItemsByCategory works with names.
+  const categorySortByName: Record<string, number> = {};
+  const categoryIdToName = new Map(
+    (categories ?? []).map((c) => [c.id, c.name])
+  );
+  for (const row of (sortOrderRows ?? []) as ListCategorySortOrder[]) {
+    const name = categoryIdToName.get(row.category_id);
+    if (name) {
+      categorySortByName[name] = row.sort_order;
+    }
+  }
+
   return {
     list: list as ShoppingList,
     items: (items ?? []) as ListItemWithCategory[],
@@ -137,6 +164,7 @@ export async function fetchListPageData(
     stores: (stores ?? []) as Store[],
     pricesByProduct,
     allDiscounts,
+    categorySortByName,
     isOwner: list.user_id === user?.id,
   };
 }

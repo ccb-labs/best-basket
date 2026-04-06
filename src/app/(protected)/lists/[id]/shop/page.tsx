@@ -38,7 +38,7 @@ export default async function ShopPage({
     notFound();
   }
 
-  const { list, items, pricesByProduct, allDiscounts } = data;
+  const { list, items, pricesByProduct, allDiscounts, categorySortByName } = data;
 
   // Calculate the smart split to get best-deal info for each item.
   // This tells us the cheapest store and price for every item.
@@ -97,6 +97,7 @@ export default async function ShopPage({
             listId={id}
             items={items}
             bestDeals={bestDeals}
+            categorySortByName={categorySortByName}
             toggleAction={toggleItemChecked}
             uncheckAllAction={uncheckAllItems}
             deleteAction={deleteList}

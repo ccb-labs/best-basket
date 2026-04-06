@@ -30,6 +30,7 @@ export function ShoppingList({
   listId,
   items,
   bestDeals,
+  categorySortByName,
   toggleAction,
   uncheckAllAction,
   deleteAction,
@@ -41,6 +42,8 @@ export function ShoppingList({
   items: ListItemWithCategory[];
   /** Best deal info per item name (from smart split calculation) */
   bestDeals: Record<string, BestDealInfo>;
+  /** Custom category display order (category name → position) */
+  categorySortByName?: Record<string, number>;
   /** Server Action to toggle an item's checked state */
   toggleAction: (
     itemId: string,
@@ -123,8 +126,8 @@ export function ShoppingList({
   const remainingItems = optimisticItems.filter((item) => !item.checked);
   const doneItems = optimisticItems.filter((item) => item.checked);
 
-  // Group remaining items by category
-  const sortedGroups = groupItemsByCategory(remainingItems);
+  // Group remaining items by category (using custom order if set)
+  const sortedGroups = groupItemsByCategory(remainingItems, categorySortByName);
   const hasPrices = Object.keys(bestDeals).length > 0;
 
   // Live shopping overlay — renders on top of everything when active
@@ -133,6 +136,7 @@ export function ShoppingList({
       <LiveShoppingMode
         items={optimisticItems}
         bestDeals={bestDeals}
+        categorySortByName={categorySortByName}
         onToggle={handleToggle}
         onClose={() => setLiveMode(false)}
       />

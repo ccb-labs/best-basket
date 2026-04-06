@@ -464,6 +464,60 @@ export async function uncheckAllItems(
   return { error: null };
 }
 
+// ─── Category Sort Order Actions ─────────────────────────────────
+
+/**
+ * Save a custom category display order for a list.
+ *
+ * Takes an array of { category_id, sort_order } pairs and replaces
+ * the existing order. If the array is empty, deletes all custom
+ * ordering (resets to alphabetical).
+ */
+export async function saveCategorySortOrder(
+  listId: string,
+  order: { category_id: string; sort_order: number }[]
+): Promise<ActionResult> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { error: "You must be logged in." };
+  }
+
+  // Delete existing sort order for this list, then insert the new one.
+  // This is simpler than upserting and handles removed categories cleanly.
+  const { error: deleteError } = await supabase
+    .from("list_category_sort_order")
+    .delete()
+    .eq("list_id", listId);
+
+  if (deleteError) {
+    return { error: "Could not update category order." };
+  }
+
+  if (order.length > 0) {
+    const rows = order.map((entry) => ({
+      list_id: listId,
+      category_id: entry.category_id,
+      sort_order: entry.sort_order,
+    }));
+
+    const { error: insertError } = await supabase
+      .from("list_category_sort_order")
+      .insert(rows);
+
+    if (insertError) {
+      return { error: "Could not save category order." };
+    }
+  }
+
+  revalidatePath(`/lists/${listId}`);
+  revalidatePath(`/lists/${listId}/shop`);
+  return { error: null };
+}
+
 // ─── Category Actions ─────────────────────────────────────────────
 
 /**
@@ -1221,6 +1275,37 @@ async function copyListItems(
 }
 
 /**
+ * Copy the custom category sort order from one list to another.
+ *
+ * Used alongside copyListItems when creating a list from a template
+ * (or saving a list as a template) so the category display order
+ * is preserved.
+ */
+async function copyCategorySortOrder(
+  supabase: SupabaseClient,
+  sourceListId: string,
+  targetListId: string
+): Promise<{ error: string | null }> {
+  const { data: sortRows } = await supabase
+    .from("list_category_sort_order")
+    .select("category_id, sort_order")
+    .eq("list_id", sourceListId);
+
+  if (sortRows && sortRows.length > 0) {
+    const { error } = await supabase.from("list_category_sort_order").insert(
+      sortRows.map((row) => ({
+        list_id: targetListId,
+        category_id: row.category_id,
+        sort_order: row.sort_order,
+      }))
+    );
+    if (error) return { error: "Could not copy category order." };
+  }
+
+  return { error: null };
+}
+
+/**
  * Create a new empty template from scratch.
  *
  * Unlike saveAsTemplate (which copies an existing list), this creates
@@ -1309,8 +1394,11 @@ export async function saveAsTemplate(
     return { error: "Could not create template. Please try again." };
   }
 
-  // Copy all items from the source list into the template
-  const copyResult = await copyListItems(supabase, listId, template.id);
+  // Copy items and category sort order in parallel (independent operations)
+  const [copyResult] = await Promise.all([
+    copyListItems(supabase, listId, template.id),
+    copyCategorySortOrder(supabase, listId, template.id),
+  ]);
   if (copyResult.error) {
     return { error: "Template created but could not copy items." };
   }
@@ -1376,8 +1464,11 @@ export async function createListFromTemplate(
     return { error: "Could not create list. Please try again." };
   }
 
-  // Copy items and update last_used_at
-  const copyResult = await copyListItems(supabase, templateId, newList.id);
+  // Copy items and category sort order in parallel (independent operations)
+  const [copyResult] = await Promise.all([
+    copyListItems(supabase, templateId, newList.id),
+    copyCategorySortOrder(supabase, templateId, newList.id),
+  ]);
   if (copyResult.error) {
     return { error: "List created but could not copy items." };
   }

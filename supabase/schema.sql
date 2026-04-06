@@ -450,6 +450,91 @@ create policy "List owners can delete shares"
 
 
 -- ============================================
+-- LIST CATEGORY SORT ORDER
+-- Stores a custom category display order per list/template.
+-- When no rows exist for a list, categories fall back to alphabetical.
+-- ============================================
+create table list_category_sort_order (
+  id uuid default gen_random_uuid() primary key,
+  list_id uuid references shopping_lists(id) on delete cascade not null,
+  category_id uuid references categories(id) on delete cascade not null,
+  sort_order integer not null default 0,
+  unique (list_id, category_id)
+);
+
+alter table list_category_sort_order enable row level security;
+
+-- RLS mirrors list_items: access if user owns or is shared the parent list
+create policy "Users can view sort order in own and shared lists"
+  on list_category_sort_order for select
+  using (
+    exists (
+      select 1 from shopping_lists
+      where shopping_lists.id = list_category_sort_order.list_id
+        and (
+          shopping_lists.user_id = auth.uid()
+          or exists (
+            select 1 from list_shares
+            where list_shares.list_id = shopping_lists.id
+              and list_shares.user_id = auth.uid()
+          )
+        )
+    )
+  );
+
+create policy "Users can insert sort order in own and shared lists"
+  on list_category_sort_order for insert
+  with check (
+    exists (
+      select 1 from shopping_lists
+      where shopping_lists.id = list_category_sort_order.list_id
+        and (
+          shopping_lists.user_id = auth.uid()
+          or exists (
+            select 1 from list_shares
+            where list_shares.list_id = shopping_lists.id
+              and list_shares.user_id = auth.uid()
+          )
+        )
+    )
+  );
+
+create policy "Users can update sort order in own and shared lists"
+  on list_category_sort_order for update
+  using (
+    exists (
+      select 1 from shopping_lists
+      where shopping_lists.id = list_category_sort_order.list_id
+        and (
+          shopping_lists.user_id = auth.uid()
+          or exists (
+            select 1 from list_shares
+            where list_shares.list_id = shopping_lists.id
+              and list_shares.user_id = auth.uid()
+          )
+        )
+    )
+  );
+
+create policy "Users can delete sort order in own and shared lists"
+  on list_category_sort_order for delete
+  using (
+    exists (
+      select 1 from shopping_lists
+      where shopping_lists.id = list_category_sort_order.list_id
+        and (
+          shopping_lists.user_id = auth.uid()
+          or exists (
+            select 1 from list_shares
+            where list_shares.list_id = shopping_lists.id
+              and list_shares.user_id = auth.uid()
+          )
+        )
+    )
+  );
+
+
+-- ============================================
 -- HELPER FUNCTIONS
 -- These use SECURITY DEFINER to run with elevated permissions.
 -- Used for accessing auth.users (not directly queryable) and

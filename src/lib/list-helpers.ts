@@ -9,16 +9,47 @@
 import type { ListItemWithCategory } from "@/lib/types";
 
 /**
- * Group items by their category name, sorted alphabetically.
+ * Compare two category names for sorting.
+ *
+ * "Uncategorized" always goes last. When a custom sort order is provided,
+ * categories are sorted by position; otherwise alphabetically.
+ * Categories not in the sort order appear after sorted ones, alphabetically.
+ *
+ * This comparator is shared by groupItemsByCategory (groups items on the
+ * list/shop pages) and useLiveShopping (orders items for voice announcements).
+ */
+export function compareCategoryNames(
+  a: string,
+  b: string,
+  sortOrder?: Record<string, number>
+): number {
+  if (a === "Uncategorized") return 1;
+  if (b === "Uncategorized") return -1;
+
+  if (sortOrder && Object.keys(sortOrder).length > 0) {
+    const orderA = sortOrder[a] ?? Number.MAX_SAFE_INTEGER;
+    const orderB = sortOrder[b] ?? Number.MAX_SAFE_INTEGER;
+    if (orderA !== orderB) return orderA - orderB;
+  }
+
+  return a.localeCompare(b);
+}
+
+/**
+ * Group items by their category name.
  *
  * Items without a category are grouped under "Uncategorized", which
  * always appears last. This is the same grouping logic used on the
  * list detail page and in shopping mode.
  *
- * @returns An array of [categoryName, items[]] tuples, sorted by name
+ * @param sortOrder Optional custom category ordering (category name → position).
+ *   When provided, categories are sorted by position instead of alphabetically.
+ *   Categories not in the map appear after sorted ones, in alphabetical order.
+ * @returns An array of [categoryName, items[]] tuples
  */
 export function groupItemsByCategory(
-  items: ListItemWithCategory[]
+  items: ListItemWithCategory[],
+  sortOrder?: Record<string, number>
 ): [string, ListItemWithCategory[]][] {
   const grouped = new Map<string, ListItemWithCategory[]>();
 
@@ -30,12 +61,9 @@ export function groupItemsByCategory(
     grouped.get(categoryName)!.push(item);
   }
 
-  // Sort alphabetically, but put "Uncategorized" last
-  return [...grouped.entries()].sort(([a], [b]) => {
-    if (a === "Uncategorized") return 1;
-    if (b === "Uncategorized") return -1;
-    return a.localeCompare(b);
-  });
+  return [...grouped.entries()].sort(([a], [b]) =>
+    compareCategoryNames(a, b, sortOrder)
+  );
 }
 
 /**

@@ -45,17 +45,17 @@ create policy "Users can delete own categories"
 
 -- Seed default categories (user_id = null means they're shared)
 insert into categories (user_id, name) values
-  (null, 'Cleaning'),
-  (null, 'Beverages'),
-  (null, 'Fruits'),
-  (null, 'Grains'),
-  (null, 'Personal Care'),
-  (null, 'Legumes'),
-  (null, 'Nuts & Seeds'),
-  (null, 'Condiments'),
+  (null, 'Limpeza'),
+  (null, 'Bebidas'),
+  (null, 'Frutas'),
+  (null, 'Cereais'),
+  (null, 'Higiene Pessoal'),
+  (null, 'Leguminosas'),
+  (null, 'Frutos Secos & Sementes'),
+  (null, 'Condimentos'),
   (null, 'Snacks'),
-  (null, 'Vegetables'),
-  (null, 'Frozen');
+  (null, 'Legumes'),
+  (null, 'Congelados');
 
 
 -- ============================================

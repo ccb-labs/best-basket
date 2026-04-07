@@ -60,6 +60,7 @@ export function AddItemForm({
   // Default unit is "Un" (Unidade)
   const defaultUnitId = units.find((u) => u.abbreviation === "Un")?.id ?? units[0]?.id ?? "";
   const [unitValue, setUnitValue] = useState(defaultUnitId);
+  const [categoryValue, setCategoryValue] = useState("");
 
   // ─── Autocomplete state ───
   const [suggestions, setSuggestions] = useState<Product[]>([]);
@@ -81,6 +82,14 @@ export function AddItemForm({
           ? units.find((u) => u.abbreviation === parsed.unit)
           : null;
         setUnitValue(matchedUnit?.id ?? defaultUnitId);
+        // Match the spoken category name against available categories
+        // Only update category if the voice input explicitly included one
+        if (parsed.category) {
+          const matchedCategory = categories.find(
+            (c) => c.name.toLowerCase() === parsed.category!.toLowerCase()
+          );
+          setCategoryValue(matchedCategory?.id ?? "");
+        }
       },
     });
 
@@ -122,6 +131,7 @@ export function AddItemForm({
         setNameValue("");
         setQuantityValue("1");
         setUnitValue(defaultUnitId);
+        setCategoryValue("");
         setSuggestions([]);
       }
       return result;
@@ -227,6 +237,8 @@ export function AddItemForm({
           </select>
           <select
             name="category_id"
+            value={categoryValue}
+            onChange={(e) => setCategoryValue(e.target.value)}
             className="flex-1 rounded-md border border-zinc-300 px-3 py-2 text-sm text-zinc-700 focus:border-zinc-500 focus:outline-none"
           >
             <option value="">No category</option>

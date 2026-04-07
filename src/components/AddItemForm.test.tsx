@@ -29,8 +29,8 @@ jest.mock("@/hooks/useVoiceInput", () => ({
 }));
 
 const mockCategories: Category[] = [
-  { id: "cat-1", user_id: null, name: "Beverages" },
-  { id: "cat-2", user_id: null, name: "Fruits" },
+  { id: "cat-1", user_id: null, name: "Bebidas" },
+  { id: "cat-2", user_id: null, name: "Frutas" },
   { id: "cat-3", user_id: "user-1", name: "My Custom" },
 ];
 
@@ -93,8 +93,8 @@ describe("AddItemForm", () => {
     // "No category" + 3 categories = 4 options
     expect(options).toHaveLength(4);
     expect(options[0]).toHaveTextContent("No category");
-    expect(options[1]).toHaveTextContent("Beverages");
-    expect(options[2]).toHaveTextContent("Fruits");
+    expect(options[1]).toHaveTextContent("Bebidas");
+    expect(options[2]).toHaveTextContent("Frutas");
     expect(options[3]).toHaveTextContent("My Custom");
   });
 

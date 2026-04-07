@@ -37,8 +37,10 @@ const UNIT_MAP: Record<string, string> = {
   kg: "Kg",
   grama: "g",
   gramas: "g",
+  g: "g",
   litro: "L",
   litros: "L",
+  l: "L",
   pacote: "Emb",
   pacotes: "Emb",
   embalagem: "Emb",
@@ -51,6 +53,7 @@ export interface ParsedVoiceInput {
   name: string;
   quantity: number;
   unit: string | null;
+  category: string | null;
 }
 
 /**
@@ -90,7 +93,7 @@ function formatName(name: string): string {
 // Pre-build the general-purpose regex once (the maps never change).
 // Matches: (number or word) [optional: unit word + "de"] (product name)
 const numberWords = Object.keys(WORD_TO_NUMBER).join("|");
-const unitWords = Object.keys(UNIT_MAP).join("|");
+const unitWords = Object.keys(UNIT_MAP).sort((a, b) => b.length - a.length).join("|");
 const GENERAL_PATTERN = new RegExp(
   `^(\\d+(?:[.,]\\d+)?|${numberWords})\\s+` + // quantity
     `(?:(${unitWords})\\s+de\\s+)?` + // optional: unit + "de"
@@ -114,18 +117,33 @@ export function parsePortugueseInput(text: string): ParsedVoiceInput {
   const normalized = text.toLowerCase().replace(/\s+/g, " ").trim();
 
   if (!normalized) {
-    return { name: "", quantity: 1, unit: null };
+    return { name: "", quantity: 1, unit: null, category: null };
+  }
+
+  // Extract category if the "categoria" keyword is present.
+  // Example: "500 gramas de cenoura categoria legumes"
+  //   → itemPart = "500 gramas de cenoura", rawCategory = "Legumes"
+  let itemPart = normalized;
+  let rawCategory: string | null = null;
+
+  // Match " na categoria " or " categoria " — users naturally say
+  // "cenoura na categoria legumes" (with "na" = "in the")
+  const catMatch = normalized.match(/ (?:na )?categoria(?: |$)/);
+  if (catMatch) {
+    itemPart = normalized.slice(0, catMatch.index!).trim();
+    const afterKeyword = normalized.slice(catMatch.index! + catMatch[0].length).trim();
+    rawCategory = afterKeyword ? capitalize(afterKeyword) : null;
   }
 
   // "uma dúzia de X" → 12 (special case — dúzia is a quantity, not a unit)
-  const duzia = normalized.match(DUZIA_PATTERN);
+  const duzia = itemPart.match(DUZIA_PATTERN);
   if (duzia) {
-    return { name: formatName(duzia[1]), quantity: 12, unit: null };
+    return { name: formatName(duzia[1]), quantity: 12, unit: null, category: rawCategory };
   }
 
   // General pattern handles most cases:
   // "2 espinafres", "meio quilo de arroz", "dois litros de sumo", etc.
-  const general = normalized.match(GENERAL_PATTERN);
+  const general = itemPart.match(GENERAL_PATTERN);
 
   if (general) {
     const [, rawQty, rawUnit, name] = general;
@@ -135,9 +153,9 @@ export function parsePortugueseInput(text: string): ParsedVoiceInput {
 
     const unit = rawUnit ? (UNIT_MAP[rawUnit] ?? null) : null;
 
-    return { name: formatName(name.trim()), quantity, unit };
+    return { name: formatName(name.trim()), quantity, unit, category: rawCategory };
   }
 
   // Fallback: entire text is the product name
-  return { name: formatName(normalized), quantity: 1, unit: null };
+  return { name: formatName(itemPart), quantity: 1, unit: null, category: rawCategory };
 }

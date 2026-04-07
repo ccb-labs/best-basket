@@ -42,7 +42,7 @@ const mockItem: ListItemWithCategory = {
   unit_id: "unit-l",
   category_id: "cat-1",
   checked: false,
-  categories: { name: "Beverages" },
+  categories: { name: "Bebidas" },
   units: { abbreviation: "L", name: "Litro", gender: "m" as const },
 };
 
@@ -60,8 +60,8 @@ const mockItemNoCategory: ListItemWithCategory = {
 };
 
 const mockCategories: Category[] = [
-  { id: "cat-1", user_id: null, name: "Beverages" },
-  { id: "cat-2", user_id: null, name: "Fruits" },
+  { id: "cat-1", user_id: null, name: "Bebidas" },
+  { id: "cat-2", user_id: null, name: "Frutas" },
 ];
 
 const mockUpdateAction = jest.fn();
@@ -86,7 +86,7 @@ describe("ListItemCard", () => {
 
     expect(screen.getByText("Milk")).toBeInTheDocument();
     expect(screen.getByText("2 Litros")).toBeInTheDocument();
-    expect(screen.getByText("Beverages")).toBeInTheDocument();
+    expect(screen.getByText("Bebidas")).toBeInTheDocument();
   });
 
   it("renders quantity with default unit when no special unit", () => {
@@ -103,7 +103,7 @@ describe("ListItemCard", () => {
     expect(screen.getByText("Bread")).toBeInTheDocument();
     expect(screen.getByText("1 Unidade")).toBeInTheDocument();
     // No category badge should be shown
-    expect(screen.queryByText("Beverages")).not.toBeInTheDocument();
+    expect(screen.queryByText("Bebidas")).not.toBeInTheDocument();
   });
 
   it("renders edit and delete buttons", () => {
@@ -214,7 +214,7 @@ describe("ListItemCard", () => {
 
     expect(options).toHaveLength(3); // "No category" + 2 categories
     expect(options[0]).toHaveTextContent("No category");
-    expect(options[1]).toHaveTextContent("Beverages");
-    expect(options[2]).toHaveTextContent("Fruits");
+    expect(options[1]).toHaveTextContent("Bebidas");
+    expect(options[2]).toHaveTextContent("Frutas");
   });
 });

@@ -55,9 +55,11 @@ test.describe.serial("List items CRUD", () => {
     await page.getByPlaceholder("Item name...").fill("Bread");
     await page.getByRole("button", { name: "Add item" }).click();
 
-    // The item should appear and the empty state should be gone
-    await expect(page.getByText("Bread")).toBeVisible();
+    // The empty state should disappear once the item is added
     await expect(page.getByText("No items yet")).not.toBeVisible();
+    // The item should appear in the list (use exact match to avoid
+    // matching autocomplete suggestions like "Whole Wheat Bread")
+    await expect(page.getByText("Bread", { exact: true })).toBeVisible();
   });
 
   test("adds an item with name, quantity, unit, and category", async ({
@@ -78,7 +80,7 @@ test.describe.serial("List items CRUD", () => {
 
     // Select a category from the dropdown
     await page.locator('select[name="category_id"]').first().selectOption({
-      label: "Beverages",
+      label: "Bebidas",
     });
 
     await page.getByRole("button", { name: "Add item" }).click();
@@ -89,7 +91,7 @@ test.describe.serial("List items CRUD", () => {
     // Check the category badge (span element) specifically to avoid
     // matching the dropdown option or category heading
     await expect(
-      page.locator("span").filter({ hasText: "Beverages" })
+      page.locator("span").filter({ hasText: "Bebidas" })
     ).toBeVisible();
   });
 
@@ -99,7 +101,7 @@ test.describe.serial("List items CRUD", () => {
 
     // "Beverages" heading should be visible (from the Milk item)
     await expect(
-      page.locator("p").filter({ hasText: "BEVERAGES" })
+      page.locator("p").filter({ hasText: "BEBIDAS" })
     ).toBeVisible();
 
     // "Uncategorized" heading should be visible (from the Bread item)
@@ -129,7 +131,7 @@ test.describe.serial("List items CRUD", () => {
 
     // Select Grains category in the edit form
     await editCard.locator('select[name="category_id"]').selectOption({
-      label: "Grains",
+      label: "Cereais",
     });
 
     // Save the changes and wait for the server to respond
@@ -147,7 +149,7 @@ test.describe.serial("List items CRUD", () => {
     await expect(page.getByText("Whole Wheat Bread")).toBeVisible();
     // Grains category badge should be visible on the item
     await expect(
-      page.locator("span").filter({ hasText: "Grains" })
+      page.locator("span").filter({ hasText: "Cereais" })
     ).toBeVisible();
     // Old name should be gone (use exact match to avoid matching "Whole Wheat Bread")
     await expect(page.getByText("Bread", { exact: true })).not.toBeVisible();

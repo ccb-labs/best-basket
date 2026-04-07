@@ -25,7 +25,7 @@ Best Basket is a shopping list and price comparison web app. Users create shoppi
 
 ## Core Features (MVP)
 1. **Shopping Lists** — create, edit, delete, and name shopping lists
-2. **List Items** — add products with: name, quantity, unit, and category. Default categories are provided (Cleaning, Beverages, Fruits, Grains, Personal Care, Legumes, Nuts & Seeds, Condiments, Snacks, Vegetables, Frozen) but users can also add their own
+2. **List Items** — add products with: name, quantity, unit, and category. Default categories are provided (Limpeza, Bebidas, Frutas, Cereais, Higiene Pessoal, Leguminosas, Frutos Secos & Sementes, Condimentos, Snacks, Legumes, Congelados) but users can also add their own
 3. **Store Prices** — for each product, add price at different stores (e.g., "Milk → Lidl: €0.89, Continente: €1.05")
 4. **Store coupons discounts** - for each store or store product, add discounts that must be considered in the final price
 5. **Price Comparison Dashboard** — summary showing:

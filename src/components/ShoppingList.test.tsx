@@ -18,7 +18,7 @@ const mockItems: ListItemWithCategory[] = [
     unit_id: "unit-l",
     category_id: "cat-1",
     checked: false,
-    categories: { name: "Beverages" },
+    categories: { name: "Bebidas" },
     units: { abbreviation: "L", name: "Litro", gender: "m" as const },
   },
   {
@@ -30,7 +30,7 @@ const mockItems: ListItemWithCategory[] = [
     unit_id: "unit-kg",
     category_id: "cat-2",
     checked: false,
-    categories: { name: "Fruits" },
+    categories: { name: "Frutas" },
     units: { abbreviation: "Kg", name: "Quilograma", gender: "m" as const },
   },
   {
@@ -90,8 +90,8 @@ describe("ShoppingList", () => {
     );
 
     // Category headers for unchecked items
-    expect(screen.getByText("Beverages")).toBeInTheDocument();
-    expect(screen.getByText("Fruits")).toBeInTheDocument();
+    expect(screen.getByText("Bebidas")).toBeInTheDocument();
+    expect(screen.getByText("Frutas")).toBeInTheDocument();
   });
 
   it("shows checked items in a Done section", () => {

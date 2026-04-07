@@ -7,6 +7,7 @@ describe("parsePortugueseInput", () => {
       quantity: 2,
       unit: null,
       name: "Espinafre",
+      category: null,
     });
   });
 
@@ -15,6 +16,7 @@ describe("parsePortugueseInput", () => {
       quantity: 1.5,
       unit: "L",
       name: "Leite",
+      category: null,
     });
   });
 
@@ -24,6 +26,7 @@ describe("parsePortugueseInput", () => {
       quantity: 0.5,
       unit: "Kg",
       name: "Arroz",
+      category: null,
     });
   });
 
@@ -32,6 +35,7 @@ describe("parsePortugueseInput", () => {
       quantity: 1,
       unit: "Kg",
       name: "Batata",
+      category: null,
     });
   });
 
@@ -40,6 +44,7 @@ describe("parsePortugueseInput", () => {
       quantity: 0.5,
       unit: "L",
       name: "Leite",
+      category: null,
     });
   });
 
@@ -48,6 +53,7 @@ describe("parsePortugueseInput", () => {
       quantity: 12,
       unit: null,
       name: "Ovo",
+      category: null,
     });
   });
 
@@ -56,6 +62,7 @@ describe("parsePortugueseInput", () => {
       quantity: 12,
       unit: null,
       name: "Ovo",
+      category: null,
     });
   });
 
@@ -65,6 +72,7 @@ describe("parsePortugueseInput", () => {
       quantity: 2,
       unit: "L",
       name: "Sumo",
+      category: null,
     });
   });
 
@@ -73,6 +81,26 @@ describe("parsePortugueseInput", () => {
       quantity: 3,
       unit: "Emb",
       name: "Massa",
+      category: null,
+    });
+  });
+
+  // --- Abbreviated units (Speech API transcriptions) ---
+  it("parses '500 g de cenoura' (abbreviated grams)", () => {
+    expect(parsePortugueseInput("500 g de cenoura")).toEqual({
+      quantity: 500,
+      unit: "g",
+      name: "Cenoura",
+      category: null,
+    });
+  });
+
+  it("parses '2 l de leite' (abbreviated liters)", () => {
+    expect(parsePortugueseInput("2 l de leite")).toEqual({
+      quantity: 2,
+      unit: "L",
+      name: "Leite",
+      category: null,
     });
   });
 
@@ -82,6 +110,7 @@ describe("parsePortugueseInput", () => {
       quantity: 5,
       unit: null,
       name: "Banana",
+      category: null,
     });
   });
 
@@ -91,6 +120,7 @@ describe("parsePortugueseInput", () => {
       quantity: 1,
       unit: null,
       name: "Leite",
+      category: null,
     });
   });
 
@@ -100,6 +130,7 @@ describe("parsePortugueseInput", () => {
       quantity: 2,
       unit: null,
       name: "Espinafre",
+      category: null,
     });
   });
 
@@ -108,6 +139,7 @@ describe("parsePortugueseInput", () => {
       quantity: 1,
       unit: null,
       name: "Leite",
+      category: null,
     });
   });
 
@@ -116,6 +148,7 @@ describe("parsePortugueseInput", () => {
       quantity: 1,
       unit: null,
       name: "",
+      category: null,
     });
   });
 
@@ -124,6 +157,7 @@ describe("parsePortugueseInput", () => {
       quantity: 0.5,
       unit: null,
       name: "Melão",
+      category: null,
     });
   });
 
@@ -133,6 +167,7 @@ describe("parsePortugueseInput", () => {
       quantity: 3,
       unit: null,
       name: "Limão",
+      category: null,
     });
   });
 
@@ -141,6 +176,7 @@ describe("parsePortugueseInput", () => {
       quantity: 2,
       unit: null,
       name: "Pão",
+      category: null,
     });
   });
 
@@ -149,6 +185,7 @@ describe("parsePortugueseInput", () => {
       quantity: 3,
       unit: null,
       name: "Atum",
+      category: null,
     });
   });
 
@@ -157,6 +194,7 @@ describe("parsePortugueseInput", () => {
       quantity: 2,
       unit: null,
       name: "Papel",
+      category: null,
     });
   });
 
@@ -165,6 +203,62 @@ describe("parsePortugueseInput", () => {
       quantity: 1,
       unit: null,
       name: "Arroz",
+      category: null,
+    });
+  });
+
+  // --- Category extraction via "categoria" keyword ---
+  it("extracts category from 'X categoria Y' pattern", () => {
+    expect(parsePortugueseInput("500 gramas de cenoura categoria legumes")).toEqual({
+      quantity: 500,
+      unit: "g",
+      name: "Cenoura",
+      category: "Legumes",
+    });
+  });
+
+  it("extracts category with 'na categoria' (natural speech)", () => {
+    expect(parsePortugueseInput("500 gramas de cenoura na categoria legumes")).toEqual({
+      quantity: 500,
+      unit: "g",
+      name: "Cenoura",
+      category: "Legumes",
+    });
+  });
+
+  it("extracts category with number-word quantity", () => {
+    expect(parsePortugueseInput("dois litros de leite categoria bebidas")).toEqual({
+      quantity: 2,
+      unit: "L",
+      name: "Leite",
+      category: "Bebidas",
+    });
+  });
+
+  it("extracts category with name-only input", () => {
+    expect(parsePortugueseInput("arroz categoria cereais")).toEqual({
+      quantity: 1,
+      unit: null,
+      name: "Arroz",
+      category: "Cereais",
+    });
+  });
+
+  it("handles multi-word category names", () => {
+    expect(parsePortugueseInput("sabão categoria higiene pessoal")).toEqual({
+      quantity: 1,
+      unit: null,
+      name: "Sabão",
+      category: "Higiene pessoal",
+    });
+  });
+
+  it("returns null category when nothing follows 'categoria'", () => {
+    expect(parsePortugueseInput("leite categoria ")).toEqual({
+      quantity: 1,
+      unit: null,
+      name: "Leite",
+      category: null,
     });
   });
 });

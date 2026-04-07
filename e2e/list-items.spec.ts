@@ -197,21 +197,30 @@ test.describe.serial("List items CRUD", () => {
     await page.goto("/");
     await page.getByRole("link", { name: listName }).click();
 
-    // Click "+ New category" to show the creation form
-    await page.getByRole("button", { name: "+ New category" }).click();
+    // Wait for the category dropdown to be populated before checking
+    const categorySelect = page.locator('select[name="category_id"]').first();
+    await categorySelect.waitFor();
+    // Check if "Dairy" already exists from a previous test run
+    const dairyOption = categorySelect.locator("option", { hasText: "Dairy" });
+    const dairyExists = (await dairyOption.count()) > 0;
 
-    // Fill in the new category name
-    await page.getByPlaceholder("Category name...").fill("Dairy");
-    await page
-      .locator("form")
-      .filter({ hasText: "Cancel" })
-      .getByRole("button", { name: "Add" })
-      .click();
+    if (!dairyExists) {
+      // Click "+ New category" to show the creation form
+      await page.getByRole("button", { name: "+ New category" }).click();
 
-    // Wait for the category to be created (form should close)
-    await expect(
-      page.getByPlaceholder("Category name...")
-    ).not.toBeVisible();
+      // Fill in the new category name
+      await page.getByPlaceholder("Category name...").fill("Dairy");
+      await page
+        .locator("form")
+        .filter({ hasText: "Cancel" })
+        .getByRole("button", { name: "Add" })
+        .click();
+
+      // Wait for the category to be created (form should close)
+      await expect(
+        page.getByPlaceholder("Category name...")
+      ).not.toBeVisible();
+    }
 
     // Now add an item with the new custom category
     await page.getByPlaceholder("Item name...").fill("Cheese");

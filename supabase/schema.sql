@@ -11,7 +11,8 @@
 create table categories (
   id uuid default gen_random_uuid() primary key,
   user_id uuid references auth.users(id) on delete cascade,
-  name text not null
+  name text not null,
+  unique (name, user_id)
 );
 
 alter table categories enable row level security;

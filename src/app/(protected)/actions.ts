@@ -552,6 +552,10 @@ export async function createCategory(
     .insert({ name: name.trim(), user_id: user.id });
 
   if (error) {
+    // PostgreSQL error code 23505 = unique constraint violation
+    if (error.code === "23505") {
+      return { error: "A category with this name already exists." };
+    }
     return { error: "Could not create category. Please try again." };
   }
 

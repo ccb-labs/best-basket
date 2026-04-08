@@ -559,8 +559,93 @@ export async function createCategory(
     return { error: "Could not create category. Please try again." };
   }
 
-  // Revalidate the list page so the new category appears in the dropdown
-  revalidatePath(`/lists/${listId}`);
+  // Revalidate the categories page and (if called from a list) the list page
+  revalidatePath("/categories");
+  if (listId) {
+    revalidatePath(`/lists/${listId}`);
+  }
+  return { error: null };
+}
+
+/**
+ * Rename an existing category.
+ *
+ * Only user-created categories (user_id is set) can be renamed.
+ * Default categories (user_id = null) are shared across all users
+ * and cannot be modified.
+ */
+export async function updateCategory(
+  previousState: ActionResult,
+  formData: FormData
+): Promise<ActionResult> {
+  const id = formData.get("id") as string;
+  const name = formData.get("name") as string;
+
+  if (!name || name.trim().length === 0) {
+    return { error: "Category name cannot be empty." };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { error: "You must be logged in." };
+  }
+
+  // RLS ensures users can only update their own categories
+  const { error } = await supabase
+    .from("categories")
+    .update({ name: name.trim() })
+    .eq("id", id);
+
+  if (error) {
+    // PostgreSQL error code 23505 = unique constraint violation
+    if (error.code === "23505") {
+      return { error: "A category with this name already exists." };
+    }
+    return { error: "Could not update category. Please try again." };
+  }
+
+  revalidatePath("/categories");
+  return { error: null };
+}
+
+/**
+ * Delete a user-created category.
+ *
+ * When a category is deleted, any list items using it will have their
+ * category_id set to null (ON DELETE SET NULL in the database schema),
+ * so items won't be lost — they'll just become "Uncategorized".
+ */
+export async function deleteCategory(
+  previousState: ActionResult,
+  formData: FormData
+): Promise<ActionResult> {
+  const id = formData.get("id") as string;
+
+  if (!id) {
+    return { error: "Missing category ID." };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { error: "You must be logged in." };
+  }
+
+  // RLS ensures users can only delete their own categories
+  const { error } = await supabase.from("categories").delete().eq("id", id);
+
+  if (error) {
+    return { error: "Could not delete category. Please try again." };
+  }
+
+  revalidatePath("/categories");
   return { error: null };
 }
 

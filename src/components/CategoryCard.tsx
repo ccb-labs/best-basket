@@ -5,9 +5,9 @@
  * - View mode: shows category name + edit/delete buttons
  * - Edit mode: input with save/cancel buttons
  *
- * Default categories (user_id = null) are shared across all users and
- * cannot be edited or deleted — only user-created categories show the
- * edit/delete buttons.
+ * All categories are user-owned (default categories are copied into
+ * the user's account on first login), so every category can be
+ * edited and deleted.
  *
  * Deleting a category sets any list items using it to "Uncategorized"
  * (ON DELETE SET NULL), so no items are lost.
@@ -41,9 +41,6 @@ export function CategoryCard({
   const [isEditing, setIsEditing] = useState(false);
   const deleteFormRef = useRef<HTMLFormElement>(null);
   const { requestConfirm, confirmDialog } = useConfirm();
-
-  // Whether this is a default category (shared, not editable)
-  const isDefault = category.user_id === null;
 
   const [updateState, updateFormAction] = useActionState(
     async (previousState: ActionResult, formData: FormData) => {
@@ -91,49 +88,37 @@ export function CategoryCard({
       ) : (
         // ─── View Mode ───
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <p className="text-sm font-medium text-zinc-900">
-              {category.name}
-            </p>
-            {isDefault && (
-              <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs text-zinc-500">
-                Default
-              </span>
-            )}
-          </div>
+          <p className="text-sm font-medium text-zinc-900">{category.name}</p>
 
-          {/* Only show edit/delete for user-created categories */}
-          {!isDefault && (
-            <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setIsEditing(true)}
+              className="rounded-md px-2 py-1 text-xs text-zinc-500 hover:bg-zinc-100"
+              aria-label={`Edit ${category.name}`}
+            >
+              Edit
+            </button>
+
+            <form
+              ref={deleteFormRef}
+              className="flex"
+              action={deleteFormAction}
+            >
+              <input type="hidden" name="id" value={category.id} />
               <button
-                onClick={() => setIsEditing(true)}
-                className="rounded-md px-2 py-1 text-xs text-zinc-500 hover:bg-zinc-100"
-                aria-label={`Edit ${category.name}`}
+                type="button"
+                onClick={() =>
+                  requestConfirm({
+                    message: `Delete "${category.name}"? Items using this category will become "Uncategorized".`,
+                    onConfirm: () => deleteFormRef.current?.requestSubmit(),
+                  })
+                }
+                className="rounded-md px-2 py-1 text-xs text-red-600 hover:bg-red-50"
               >
-                Edit
+                Delete
               </button>
-
-              <form
-                ref={deleteFormRef}
-                className="flex"
-                action={deleteFormAction}
-              >
-                <input type="hidden" name="id" value={category.id} />
-                <button
-                  type="button"
-                  onClick={() =>
-                    requestConfirm({
-                      message: `Delete "${category.name}"? Items using this category will become "Uncategorized".`,
-                      onConfirm: () => deleteFormRef.current?.requestSubmit(),
-                    })
-                  }
-                  className="rounded-md px-2 py-1 text-xs text-red-600 hover:bg-red-50"
-                >
-                  Delete
-                </button>
-              </form>
-            </div>
-          )}
+            </form>
+          </div>
         </div>
       )}
 

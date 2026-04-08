@@ -629,3 +629,47 @@ as $$
         and sl.user_id = auth.uid()
     );
 $$;
+
+-- Bootstrap default categories into a user's account.
+-- Copies all default categories (user_id = null) so the user owns them
+-- and can freely edit or delete. Also migrates any list_items and
+-- list_category_sort_order rows that reference defaults to the user's copies.
+-- Idempotent: safe to call multiple times (uses ON CONFLICT DO NOTHING).
+create or replace function bootstrap_user_categories(target_user_id uuid)
+returns void
+language plpgsql
+security definer
+as $$
+declare
+  default_cat record;
+  new_cat_id uuid;
+begin
+  for default_cat in
+    select id, name from categories where user_id is null
+  loop
+    insert into categories (user_id, name)
+    values (target_user_id, default_cat.name)
+    on conflict (name, user_id) do nothing;
+
+    select id into new_cat_id
+    from categories
+    where user_id = target_user_id and name = default_cat.name;
+
+    update list_items
+    set category_id = new_cat_id
+    where category_id = default_cat.id
+      and list_id in (
+        select sl.id from shopping_lists sl
+        where sl.user_id = target_user_id
+      );
+
+    update list_category_sort_order
+    set category_id = new_cat_id
+    where category_id = default_cat.id
+      and list_id in (
+        select sl.id from shopping_lists sl
+        where sl.user_id = target_user_id
+      );
+  end loop;
+end;
+$$;

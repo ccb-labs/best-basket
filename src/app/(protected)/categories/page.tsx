@@ -8,13 +8,12 @@ import type { Category } from "@/lib/types";
 export const metadata: Metadata = { title: "My Categories" };
 
 /**
- * Categories page — shows all categories available to the user.
+ * Categories page — shows the user's categories.
  *
- * Categories come in two types:
- * - Default categories (user_id = null): shared across all users,
- *   cannot be edited or deleted (shown with a "Default" badge)
- * - User-created categories (user_id = current user): can be renamed
- *   or deleted. Deleting one sets items using it to "Uncategorized".
+ * All categories are user-owned. Default categories (like "Bebidas",
+ * "Frutas", etc.) are copied into each user's account on first login
+ * by the bootstrap_user_categories() database function, so every user
+ * can freely rename or delete them.
  *
  * The page follows the same layout pattern as the Stores page:
  * a creation form at the top, then the list of existing categories.
@@ -22,20 +21,18 @@ export const metadata: Metadata = { title: "My Categories" };
 export default async function CategoriesPage() {
   const supabase = await createClient();
 
-  // Fetch all categories the user can see:
-  // default ones (user_id = null) + the user's own categories.
-  // RLS handles the filtering automatically.
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  // Fetch only the current user's categories (all editable)
   const { data: categories } = await supabase
     .from("categories")
     .select("*")
+    .eq("user_id", user!.id)
     .order("name");
 
-  const allCategories = (categories ?? []) as Category[];
-
-  // Split into user-created and default categories so we can
-  // show them in separate sections for clarity
-  const userCategories = allCategories.filter((c) => c.user_id !== null);
-  const defaultCategories = allCategories.filter((c) => c.user_id === null);
+  const userCategories = (categories ?? []) as Category[];
 
   return (
     <div className="flex flex-col gap-4">
@@ -44,10 +41,9 @@ export default async function CategoriesPage() {
       {/* Form to add a new category — always visible at the top */}
       <CategoryForm createAction={createCategory} />
 
-      {/* User-created categories — these can be edited and deleted */}
-      {userCategories.length > 0 && (
+      {/* List of categories — all editable and deletable */}
+      {userCategories.length > 0 ? (
         <div className="flex flex-col gap-2">
-          <h3 className="text-sm font-medium text-zinc-500">Your Categories</h3>
           {userCategories.map((category) => (
             <CategoryCard
               key={category.id}
@@ -57,27 +53,7 @@ export default async function CategoriesPage() {
             />
           ))}
         </div>
-      )}
-
-      {/* Default categories — read-only, shown for reference */}
-      {defaultCategories.length > 0 && (
-        <div className="flex flex-col gap-2">
-          <h3 className="text-sm font-medium text-zinc-500">
-            Default Categories
-          </h3>
-          {defaultCategories.map((category) => (
-            <CategoryCard
-              key={category.id}
-              category={category}
-              updateAction={updateCategory}
-              deleteAction={deleteCategory}
-            />
-          ))}
-        </div>
-      )}
-
-      {/* Empty state when there are no categories at all */}
-      {allCategories.length === 0 && (
+      ) : (
         <div className="py-12 text-center">
           <p className="text-lg font-medium text-zinc-400">
             No categories yet

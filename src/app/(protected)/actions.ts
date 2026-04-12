@@ -547,6 +547,18 @@ export async function createCategory(
     return { error: "You must be logged in." };
   }
 
+  // Check if a default category with the same name already exists
+  const { data: existing } = await supabase
+    .from("categories")
+    .select("id")
+    .is("user_id", null)
+    .ilike("name", name.trim())
+    .maybeSingle();
+
+  if (existing) {
+    return { error: "A category with this name already exists." };
+  }
+
   const { error } = await supabase
     .from("categories")
     .insert({ name: name.trim(), user_id: user.id });

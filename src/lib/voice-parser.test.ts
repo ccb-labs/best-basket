@@ -261,4 +261,33 @@ describe("parsePortugueseInput", () => {
       category: null,
     });
   });
+
+  // --- Unit "unidades" recognition with category ---
+  it("parses '7 unidades de laranjas na categoria frutas'", () => {
+    expect(parsePortugueseInput("7 unidades de laranjas na categoria frutas")).toEqual({
+      quantity: 7,
+      unit: "Un",
+      name: "Laranja",
+      category: "Frutas",
+    });
+  });
+
+  // --- Title case for multi-word product names ---
+  it("title-cases multi-word names, keeping small words lowercase", () => {
+    expect(parsePortugueseInput("2 sumo de laranja")).toEqual({
+      quantity: 2,
+      unit: null,
+      name: "Sumo de Laranja",
+      category: null,
+    });
+  });
+
+  it("title-cases 'gelado de baunilha'", () => {
+    expect(parsePortugueseInput("gelado de baunilha")).toEqual({
+      quantity: 1,
+      unit: null,
+      name: "Gelado de Baunilha",
+      category: null,
+    });
+  });
 });

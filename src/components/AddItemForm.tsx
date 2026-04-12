@@ -131,7 +131,6 @@ export function AddItemForm({
     async (previousState: ActionResult, formData: FormData) => {
       const result = await addItemAction(previousState, formData);
       if (!result.error) {
-        formRef.current?.reset();
         setNameValue("");
         setQuantityValue("1");
         setUnitValue(defaultUnitId);

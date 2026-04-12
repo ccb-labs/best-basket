@@ -85,9 +85,27 @@ function capitalize(word: string): string {
   return word[0].toUpperCase() + word.slice(1);
 }
 
-/** Applies singular + capitalize to the product name */
+const SMALL_WORDS = new Set(["de", "e", "do", "da", "dos", "das", "em", "no", "na", "nos", "nas", "com", "por", "para", "ao", "aos"]);
+
+/**
+ * Title-cases a product name: capitalizes each word except Portuguese
+ * small words (de, e, do, da, etc.). The first word is always capitalized.
+ *
+ * Examples:
+ *   "sumo de laranja" → "Sumo de Laranja"
+ *   "leite e cereais" → "Leite e Cereais"
+ *   "pão"             → "Pão"
+ */
+function titleCase(text: string): string {
+  return text
+    .split(" ")
+    .map((word, i) => (i === 0 || !SMALL_WORDS.has(word)) ? capitalize(word) : word)
+    .join(" ");
+}
+
+/** Applies singular + title case to the product name */
 function formatName(name: string): string {
-  return capitalize(toSingular(name));
+  return titleCase(toSingular(name));
 }
 
 // Pre-build the general-purpose regex once (the maps never change).

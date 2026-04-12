@@ -53,12 +53,16 @@ export function AddItemForm({
   const formRef = useRef<HTMLFormElement>(null);
   const [showNewCategory, setShowNewCategory] = useState(false);
 
+  // Case-insensitive match to handle subtle data differences
+  // (e.g. trailing whitespace or casing in the DB)
+  const findUnitByAbbr = (abbr: string) =>
+    units.find((u) => u.abbreviation.trim().toLowerCase() === abbr.toLowerCase());
+
   // ─── Form field state ───
   // Name, quantity, and unit are all controlled so voice input can fill them.
   const [nameValue, setNameValue] = useState("");
   const [quantityValue, setQuantityValue] = useState("1");
-  // Default unit is "Un" (Unidade)
-  const defaultUnitId = units.find((u) => u.abbreviation === "Un")?.id ?? units[0]?.id ?? "";
+  const defaultUnitId = findUnitByAbbr("Un")?.id ?? units[0]?.id ?? "";
   const [unitValue, setUnitValue] = useState(defaultUnitId);
   const [categoryValue, setCategoryValue] = useState("");
 
@@ -79,7 +83,7 @@ export function AddItemForm({
         setQuantityValue(String(parsed.quantity));
         // Map the parsed abbreviation (e.g. "Kg") to the unit ID
         const matchedUnit = parsed.unit
-          ? units.find((u) => u.abbreviation === parsed.unit)
+          ? findUnitByAbbr(parsed.unit)
           : null;
         setUnitValue(matchedUnit?.id ?? defaultUnitId);
         // Match the spoken category name against available categories

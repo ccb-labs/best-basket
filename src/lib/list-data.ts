@@ -79,7 +79,7 @@ export async function fetchListPageData(
     supabase
       .from("categories")
       .select("*")
-      .or(`user_id.is.null,user_id.eq.${user?.id}`)
+      .eq("user_id", user?.id)
       .order("name"),
     supabase.from("units").select("*").order("name"),
     supabase.from("stores").select("*").order("name"),

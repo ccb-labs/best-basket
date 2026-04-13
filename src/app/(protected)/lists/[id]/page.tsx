@@ -12,6 +12,7 @@ import { ActionFormButton } from "@/components/ActionFormButton";
 import { CategorySortEditor } from "@/components/CategorySortEditor";
 import {
   addItem,
+  addItemToMultipleLists,
   updateItem,
   deleteItem,
   createCategory,
@@ -76,6 +77,19 @@ export default async function ListDetailPage({
       { p_list_id: id }
     );
     shares = sharesData ?? [];
+  }
+
+  // When viewing a template, fetch the user's shopping lists so the
+  // "Also add to these lists?" dialog can show them after adding an item.
+  let userLists: { id: string; name: string; source_template_id: string | null }[] = [];
+  if (list.is_template) {
+    const supabase = await createClient();
+    const { data: listsData } = await supabase
+      .from("shopping_lists")
+      .select("id, name, source_template_id")
+      .eq("is_template", false)
+      .order("created_at", { ascending: false });
+    userLists = (listsData ?? []) as typeof userLists;
   }
 
   // Group items by category name so we can render them in sections
@@ -198,6 +212,10 @@ export default async function ListDetailPage({
           units={units}
           addItemAction={addItem}
           createCategoryAction={createCategory}
+          templateConfig={list.is_template && userLists.length > 0 ? {
+            userLists,
+            addToMultipleListsAction: addItemToMultipleLists,
+          } : undefined}
         />
       </div>
 

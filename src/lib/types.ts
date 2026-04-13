@@ -14,6 +14,15 @@ export type ShoppingList = {
   is_template: boolean;
   recurrence: "weekly" | "monthly" | null;
   last_used_at: string | null;
+  source_template_id: string | null; // which template this list was created from
+};
+
+/** The data needed to add a new item to a list (used by addItem and addItemToMultipleLists) */
+export type NewItemData = {
+  name: string;
+  quantity: number;
+  unit_id: string;
+  category_id: string | null;
 };
 
 /** A category as stored in the categories table */

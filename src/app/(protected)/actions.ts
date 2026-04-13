@@ -17,6 +17,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import type { NewItemData } from "@/lib/types";
 
 /** The shape returned by every action — either an error message or null */
 export type ActionResult = {
@@ -78,6 +79,56 @@ async function findOrCreateProduct(
     .single();
 
   return created?.id ?? null;
+}
+
+/**
+ * Insert a single item into a list, handling product lookup and category
+ * auto-fill. Shared by addItem() and addItemToMultipleLists() so the
+ * logic isn't duplicated.
+ *
+ * Returns an error string if something goes wrong, or null on success.
+ */
+async function insertItemIntoList(
+  supabase: SupabaseClient,
+  listId: string,
+  itemData: NewItemData
+): Promise<string | null> {
+  const ownerId = await getListOwnerId(supabase, listId);
+  if (!ownerId) return "List not found.";
+
+  const productId = await findOrCreateProduct(
+    supabase,
+    ownerId,
+    itemData.name
+  );
+  if (!productId) return "Could not create product.";
+
+  // Auto-fill category from a previous usage of this product
+  let resolvedCategoryId = itemData.category_id;
+  if (!resolvedCategoryId) {
+    const { data: previousItem } = await supabase
+      .from("list_items")
+      .select("category_id")
+      .eq("product_id", productId)
+      .not("category_id", "is", null)
+      .limit(1)
+      .single();
+
+    if (previousItem?.category_id) {
+      resolvedCategoryId = previousItem.category_id;
+    }
+  }
+
+  const { error } = await supabase.from("list_items").insert({
+    list_id: listId,
+    product_id: productId,
+    name: itemData.name,
+    quantity: itemData.quantity,
+    unit_id: itemData.unit_id,
+    category_id: resolvedCategoryId,
+  });
+
+  return error ? "Could not add item." : null;
 }
 
 /**
@@ -236,25 +287,57 @@ export async function addItem(
     return { error: "You must be logged in." };
   }
 
-  // Use the list owner's user_id for product lookup.
-  // If this is a shared list, the product needs to be in the owner's catalog
-  // so prices stay consistent for all collaborators.
-  const ownerId = await getListOwnerId(supabase, listId);
-  if (!ownerId) {
-    return { error: "List not found." };
+  const insertError = await insertItemIntoList(supabase, listId, {
+    name: name.trim(),
+    quantity,
+    unit_id: unitId,
+    category_id: categoryId || null,
+  });
+
+  if (insertError) {
+    return { error: insertError };
   }
 
-  // Find or create a product with this name in the owner's catalog.
-  // ilike does a case-insensitive match so "Milk" and "milk" are the same product.
-  const productId = await findOrCreateProduct(supabase, ownerId, name.trim());
+  revalidatePath(`/lists/${listId}`);
+  return { error: null };
+}
+
+/**
+ * Add the same item to multiple shopping lists at once.
+ *
+ * Called from the "Also add to these lists?" dialog that appears when
+ * adding a product to a template. This is a direct server action (not
+ * a form action) because it's invoked from client code, not a <form>.
+ *
+ * The product lookup and category auto-fill are done once upfront (since
+ * the item name is the same for every list), then only the insert runs
+ * per list — avoiding redundant DB queries.
+ */
+export async function addItemToMultipleLists(
+  listIds: string[],
+  itemData: NewItemData
+): Promise<ActionResult> {
+  if (listIds.length === 0) {
+    return { error: null };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { error: "You must be logged in." };
+  }
+
+  // Look up the product once (all lists belong to the same user)
+  const productId = await findOrCreateProduct(supabase, user.id, itemData.name);
   if (!productId) {
     return { error: "Could not create product. Please try again." };
   }
 
-  // If the user didn't pick a category, try to auto-fill it from a previous
-  // usage of this product. For example, if "Amendoim" was previously added
-  // with "Nuts & Seeds", new list items for "Amendoim" get that category too.
-  let resolvedCategoryId = categoryId || null;
+  // Resolve category once from previous usage
+  let resolvedCategoryId = itemData.category_id;
   if (!resolvedCategoryId) {
     const { data: previousItem } = await supabase
       .from("list_items")
@@ -269,20 +352,32 @@ export async function addItem(
     }
   }
 
-  const { error } = await supabase.from("list_items").insert({
-    list_id: listId,
-    product_id: productId,
-    name: name.trim(),
-    quantity,
-    unit_id: unitId,
-    category_id: resolvedCategoryId, // auto-filled from previous usage if not set
-  });
+  // Insert the item into each selected list
+  const failedLists: string[] = [];
+  for (const listId of listIds) {
+    const { error } = await supabase.from("list_items").insert({
+      list_id: listId,
+      product_id: productId,
+      name: itemData.name,
+      quantity: itemData.quantity,
+      unit_id: itemData.unit_id,
+      category_id: resolvedCategoryId,
+    });
 
-  if (error) {
-    return { error: "Could not add item. Please try again." };
+    if (error) {
+      failedLists.push(listId);
+    } else {
+      revalidatePath(`/lists/${listId}`);
+    }
   }
 
-  revalidatePath(`/lists/${listId}`);
+  if (failedLists.length > 0) {
+    const succeeded = listIds.length - failedLists.length;
+    return {
+      error: `Added to ${succeeded} of ${listIds.length} lists. Some lists could not be updated.`,
+    };
+  }
+
   return { error: null };
 }
 
@@ -1557,6 +1652,7 @@ export async function createListFromTemplate(
       name: template.name,
       user_id: user.id,
       is_template: false,
+      source_template_id: templateId,
     })
     .select("id")
     .single();

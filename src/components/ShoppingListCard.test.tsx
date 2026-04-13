@@ -32,6 +32,8 @@ const mockList: ShoppingList = {
   created_at: "2026-03-28T10:00:00Z",
   is_template: false,
   recurrence: null,
+  last_used_at: null,
+  source_template_id: null,
 };
 
 const mockUpdateAction = jest.fn();

@@ -70,7 +70,8 @@ create table shopping_lists (
   created_at timestamptz default now() not null,
   is_template boolean default false not null,
   recurrence text check (recurrence in ('weekly', 'monthly')),
-  last_used_at timestamptz
+  last_used_at timestamptz,
+  source_template_id uuid references shopping_lists(id) on delete set null
 );
 
 alter table shopping_lists enable row level security;

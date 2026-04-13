@@ -17,12 +17,13 @@
 import { useActionState, useRef, useState, useEffect } from "react";
 import { SubmitButton } from "@/components/SubmitButton";
 import { CreateCategoryForm } from "@/components/CreateCategoryForm";
+import { AddToListsDialog } from "@/components/AddToListsDialog";
 import { MicrophoneIcon } from "@/components/MicrophoneIcon";
 import { createClient } from "@/lib/supabase/client";
 import { useVoiceInput } from "@/hooks/useVoiceInput";
 import { parsePortugueseInput } from "@/lib/voice-parser";
 import type { ActionResult } from "@/app/(protected)/actions";
-import type { Category, Product, Unit } from "@/lib/types";
+import type { Category, NewItemData, Product, Unit } from "@/lib/types";
 
 const MIN_SEARCH_LENGTH = 2;
 
@@ -32,6 +33,7 @@ export function AddItemForm({
   units,
   addItemAction,
   createCategoryAction,
+  templateConfig,
 }: {
   /** The shopping list this item will be added to */
   listId: string;
@@ -49,6 +51,14 @@ export function AddItemForm({
     previousState: ActionResult,
     formData: FormData
   ) => Promise<ActionResult>;
+  /** When set, enables the "also add to these lists?" dialog after adding an item */
+  templateConfig?: {
+    userLists: { id: string; name: string; source_template_id: string | null }[];
+    addToMultipleListsAction: (
+      listIds: string[],
+      itemData: NewItemData
+    ) => Promise<ActionResult>;
+  };
 }) {
   const formRef = useRef<HTMLFormElement>(null);
   const [showNewCategory, setShowNewCategory] = useState(false);
@@ -65,6 +75,11 @@ export function AddItemForm({
   const defaultUnitId = findUnitByAbbr("Un")?.id ?? units[0]?.id ?? "";
   const [unitValue, setUnitValue] = useState(defaultUnitId);
   const [categoryValue, setCategoryValue] = useState("");
+
+  // ─── "Add to lists" dialog state (template mode only) ───
+  const [showAddToListsDialog, setShowAddToListsDialog] = useState(false);
+  const [pendingItemData, setPendingItemData] = useState<NewItemData | null>(null);
+  const [addingToLists, setAddingToLists] = useState(false);
 
   // ─── Autocomplete state ───
   const [suggestions, setSuggestions] = useState<Product[]>([]);
@@ -131,6 +146,17 @@ export function AddItemForm({
     async (previousState: ActionResult, formData: FormData) => {
       const result = await addItemAction(previousState, formData);
       if (!result.error) {
+        // Capture item data BEFORE resetting fields (needed for the dialog)
+        if (templateConfig && templateConfig.userLists.length > 0) {
+          setPendingItemData({
+            name: nameValue.trim(),
+            quantity: parseFloat(quantityValue) || 1,
+            unit_id: unitValue,
+            category_id: categoryValue || null,
+          });
+          setShowAddToListsDialog(true);
+        }
+
         setNameValue("");
         setQuantityValue("1");
         setUnitValue(defaultUnitId);
@@ -242,7 +268,7 @@ export function AddItemForm({
             name="category_id"
             value={categoryValue}
             onChange={(e) => setCategoryValue(e.target.value)}
-            className="flex-1 rounded-md border border-zinc-300 px-3 py-2 text-sm text-zinc-700 focus:border-zinc-500 focus:outline-none"
+            className="min-w-0 flex-1 rounded-md border border-zinc-300 px-3 py-2 text-sm text-zinc-700 focus:border-zinc-500 focus:outline-none"
           >
             <option value="">No category</option>
             {categories.map((cat) => (
@@ -280,6 +306,29 @@ export function AddItemForm({
         <p className="mt-2 rounded-md bg-red-50 p-3 text-sm text-red-600">
           {state.error}
         </p>
+      )}
+
+      {/* "Also add to these lists?" dialog — only shown on templates */}
+      {showAddToListsDialog && pendingItemData && templateConfig && (
+        <AddToListsDialog
+          lists={templateConfig.userLists}
+          templateId={listId}
+          itemName={pendingItemData.name}
+          loading={addingToLists}
+          onConfirm={async (selectedListIds) => {
+            if (selectedListIds.length > 0) {
+              setAddingToLists(true);
+              await templateConfig.addToMultipleListsAction(selectedListIds, pendingItemData);
+              setAddingToLists(false);
+            }
+            setShowAddToListsDialog(false);
+            setPendingItemData(null);
+          }}
+          onCancel={() => {
+            setShowAddToListsDialog(false);
+            setPendingItemData(null);
+          }}
+        />
       )}
     </div>
   );

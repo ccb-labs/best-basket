@@ -10,7 +10,9 @@
  */
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useEscapeKey } from "@/hooks/useEscapeKey";
+import { useScrollLock } from "@/hooks/useScrollLock";
 
 export function ConfirmDialog({
   open,
@@ -33,24 +35,9 @@ export function ConfirmDialog({
   /** Called when the user cancels (backdrop click, Escape key, or Cancel button) */
   onCancel: () => void;
 }) {
-  // Close on Escape key press
-  useEffect(() => {
-    if (!open) return;
-    function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") onCancel();
-    }
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [open, onCancel]);
-
-  // Prevent background scrolling while the dialog is open
-  useEffect(() => {
-    if (!open) return;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = "";
-    };
-  }, [open]);
+  // Close on Escape key and prevent background scrolling
+  useEscapeKey(onCancel);
+  useScrollLock();
 
   if (!open) return null;
 

@@ -98,7 +98,7 @@ export function ListItemCard({
             <select
               name="category_id"
               defaultValue={item.category_id ?? ""}
-              className="flex-1 rounded-md border border-zinc-300 px-3 py-1.5 text-sm text-zinc-700 focus:border-zinc-500 focus:outline-none"
+              className="min-w-0 flex-1 rounded-md border border-zinc-300 px-3 py-1.5 text-sm text-zinc-700 focus:border-zinc-500 focus:outline-none"
             >
               <option value="">No category</option>
               {categories.map((cat) => (

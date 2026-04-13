@@ -268,7 +268,7 @@ export function AddItemForm({
             name="category_id"
             value={categoryValue}
             onChange={(e) => setCategoryValue(e.target.value)}
-            className="flex-1 rounded-md border border-zinc-300 px-3 py-2 text-sm text-zinc-700 focus:border-zinc-500 focus:outline-none"
+            className="min-w-0 flex-1 rounded-md border border-zinc-300 px-3 py-2 text-sm text-zinc-700 focus:border-zinc-500 focus:outline-none"
           >
             <option value="">No category</option>
             {categories.map((cat) => (

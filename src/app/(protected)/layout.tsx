@@ -34,20 +34,16 @@ export default async function ProtectedLayout({
     redirect("/login");
   }
 
-  // Bootstrap default categories into the user's account on first visit.
-  // This copies the shared default categories (user_id = null) so the
-  // user owns them and can edit/delete freely. The function is idempotent,
-  // but we skip the call entirely if the user already has categories.
-  const { count } = await supabase
-    .from("categories")
-    .select("*", { count: "exact", head: true })
-    .eq("user_id", user.id);
-
-  if (count === 0) {
-    await supabase.rpc("bootstrap_user_categories", {
-      target_user_id: user.id,
-    });
-  }
+  // Bootstrap default categories into the user's account.
+  // The RPC copies the shared defaults (user_id = null) so the user
+  // owns them and can edit/delete freely. It's idempotent (uses
+  // ON CONFLICT DO NOTHING), so we call it on every protected page
+  // load — a handful of conflict-skipped inserts is cheaper than a
+  // fragile "have they been bootstrapped yet?" gate, and it ensures
+  // every user always has their defaults.
+  await supabase.rpc("bootstrap_user_categories", {
+    target_user_id: user.id,
+  });
 
   return (
     <div className="min-h-screen bg-zinc-50">

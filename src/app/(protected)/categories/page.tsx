@@ -11,9 +11,10 @@ export const metadata: Metadata = { title: "My Categories" };
  * Categories page — shows the user's categories.
  *
  * All categories are user-owned. Default categories (like "Bebidas",
- * "Frutas", etc.) are copied into each user's account on first login
- * by the bootstrap_user_categories() database function, so every user
- * can freely rename or delete them.
+ * "Frutas", etc.) are copied into each user's account by the
+ * bootstrap_user_categories() database function — the protected
+ * layout calls it on every page load (it's idempotent), so every
+ * user always has their defaults and can freely rename or delete them.
  *
  * The page follows the same layout pattern as the Stores page:
  * a creation form at the top, then the list of existing categories.

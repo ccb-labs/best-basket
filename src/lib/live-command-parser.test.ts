@@ -128,6 +128,7 @@ const makeItem = (
   unit_id: "unit-un",
   category_id: null,
   checked,
+  checked_at: checked ? "2026-04-30T10:00:00.000Z" : null,
   categories: null,
   units: { abbreviation: "Un", name: "Unidade", gender: "f" as const },
 });

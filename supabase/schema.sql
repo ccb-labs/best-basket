@@ -196,7 +196,8 @@ create table list_items (
   quantity numeric default 1 not null,
   unit_id uuid references units(id) on delete set null,
   category_id uuid references categories(id) on delete set null,
-  checked boolean default false not null  -- Phase 7: shopping mode check-off
+  checked boolean default false not null,  -- Phase 7: shopping mode check-off
+  checked_at timestamptz                    -- when the item was checked (null when unchecked); used to order the "Done" list by recency
 );
 
 alter table list_items enable row level security;

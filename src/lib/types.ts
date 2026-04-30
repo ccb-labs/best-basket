@@ -57,6 +57,7 @@ export type ListItem = {
   unit_id: string; // references the units table
   category_id: string | null;
   checked: boolean; // Phase 7: whether the item has been checked off while shopping
+  checked_at: string | null; // ISO timestamp set when checked, null when unchecked — used to order the "Done" list by recency
 };
 
 /**

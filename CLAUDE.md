@@ -60,6 +60,13 @@ Tables to create (ask before implementing if unsure):
 - `discounts` (id, user_id, store_id, item_price_id, type, value, description)
 - `list_shares` (id, list_id, user_id)
 
+## Database Migrations
+- Local Supabase runs in Docker via the Supabase CLI (`supabase start`). The local DB lives at `http://127.0.0.1:54321` (matches `.env.local`).
+- **Schema changes go in `supabase/migrations/`** as timestamped SQL files (`YYYYMMDDHHMMSS_short_name.sql`). Never run ad-hoc `ALTER`/`CREATE` against the hosted DB by hand — it drifts from the migration history.
+- After creating a migration file, apply it locally with `supabase migration up` (or `supabase db reset` to wipe and re-apply everything from scratch).
+- Also update `supabase/schema.sql` to reflect the new shape — it's the human-readable reference, not the source of truth.
+- The hosted DB picks up new migrations on the next `supabase db push` / deploy.
+
 ## Code Style
 - Use TypeScript (but keep types simple — no complex generics)
 - Use named exports for components

@@ -3,8 +3,7 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { fetchListPageData } from "@/lib/list-data";
 import { AddItemForm } from "@/components/AddItemForm";
-import { ListItemCard } from "@/components/ListItemCard";
-import { ItemPricesSection } from "@/components/ItemPricesSection";
+import { ListItemsSection } from "@/components/ListItemsSection";
 import { EmptyItemState } from "@/components/EmptyItemState";
 import { ShareListSection } from "@/components/ShareListSection";
 import { SubmitButton } from "@/components/SubmitButton";
@@ -28,7 +27,6 @@ import {
   createListFromTemplate,
   saveCategorySortOrder,
 } from "@/app/(protected)/actions";
-import { groupItemsByCategory } from "@/lib/list-helpers";
 
 /**
  * List detail page — shows a shopping list's items with the ability
@@ -92,8 +90,9 @@ export default async function ListDetailPage({
     userLists = (listsData ?? []) as typeof userLists;
   }
 
-  // Group items by category name so we can render them in sections
-  const sortedGroups = groupItemsByCategory(items, categorySortByName);
+  // Convert the prices Map into a plain object so it can be passed to a
+  // Client Component (Maps aren't serializable across the server/client boundary).
+  const pricesByProductObj = Object.fromEntries(pricesByProduct);
 
   // Build the list of categories actually used in this list (for the reorder UI).
   // We need both the category ID and name so the editor can save by ID.
@@ -231,54 +230,32 @@ export default async function ListDetailPage({
         </div>
       )}
 
-      {/* List items grouped by category, or empty state */}
+      {/* List items grouped by category, or empty state.
+          The interactive list (with the search box and voice button) lives
+          inside ListItemsSection — a Client Component — because it needs
+          local state to filter as the user types. */}
       <div className="mt-6">
         {items.length === 0 ? (
           <EmptyItemState />
         ) : (
-          <div className="flex flex-col gap-6">
-            {sortedGroups.map(([categoryName, groupItems]) => (
-              <div key={categoryName}>
-                {/* Category heading */}
-                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-400">
-                  {categoryName}
-                </p>
-                <div className="flex flex-col gap-2">
-                  {groupItems.map((item) => (
-                    <div
-                      key={item.id}
-                      className="rounded-md border border-zinc-200 bg-white"
-                    >
-                      {/* Item details (name, quantity, category, edit/delete) */}
-                      <ListItemCard
-                        item={item}
-                        categories={categories}
-                        units={units}
-                        updateAction={updateItem}
-                        deleteAction={deleteItem}
-                      />
-                      {/* Prices section — only shown if item has a product link */}
-                      {item.product_id && (
-                        <ItemPricesSection
-                          productId={item.product_id}
-                          listId={id}
-                          prices={pricesByProduct.get(item.product_id) ?? []}
-                          stores={stores}
-                          discounts={allDiscounts}
-                          addPriceAction={addPrice}
-                          updatePriceAction={updatePrice}
-                          deletePriceAction={deletePrice}
-                          addDiscountAction={addDiscount}
-                          updateDiscountAction={updateDiscount}
-                          deleteDiscountAction={deleteDiscount}
-                        />
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
+          <ListItemsSection
+            listId={id}
+            items={items}
+            categories={categories}
+            units={units}
+            stores={stores}
+            pricesByProduct={pricesByProductObj}
+            allDiscounts={allDiscounts}
+            categorySortByName={categorySortByName}
+            updateItemAction={updateItem}
+            deleteItemAction={deleteItem}
+            addPriceAction={addPrice}
+            updatePriceAction={updatePrice}
+            deletePriceAction={deletePrice}
+            addDiscountAction={addDiscount}
+            updateDiscountAction={updateDiscount}
+            deleteDiscountAction={deleteDiscount}
+          />
         )}
       </div>
     </div>

@@ -20,8 +20,9 @@ import { useRouter } from "next/navigation";
 import { ShoppingProgressBar } from "@/components/ShoppingProgressBar";
 import { ShoppingItemCard } from "@/components/ShoppingItemCard";
 import { LiveShoppingMode } from "@/components/LiveShoppingMode";
+import { SearchInput } from "@/components/SearchInput";
 import { useConfirm } from "@/components/ConfirmDialog";
-import { groupItemsByCategory } from "@/lib/list-helpers";
+import { filterItemsByName, groupItemsByCategory } from "@/lib/list-helpers";
 import type { BestDealInfo } from "@/lib/types";
 import type { ListItemWithCategory } from "@/lib/types";
 import type { ActionResult } from "@/app/(protected)/actions";
@@ -63,6 +64,7 @@ export function ShoppingList({
   const router = useRouter();
   const [showPrices, setShowPrices] = useState(true);
   const [liveMode, setLiveMode] = useState(initialLiveMode);
+  const [searchQuery, setSearchQuery] = useState("");
   const [, startTransition] = useTransition();
   const deleteFormRef = useRef<HTMLFormElement>(null);
   const { requestConfirm, confirmDialog } = useConfirm();
@@ -128,13 +130,21 @@ export function ShoppingList({
     });
   }
 
-  // Split items into unchecked (remaining) and checked (done).
+  // Overall counts feed the progress bar — they ignore the search filter
+  // so progress doesn't appear to jump while the user types.
+  const totalCount = optimisticItems.length;
+  const checkedCount = optimisticItems.reduce(
+    (n, item) => n + (item.checked ? 1 : 0),
+    0
+  );
+
+  const filteredItems = filterItemsByName(optimisticItems, searchQuery);
+
   // Done items are sorted by checked_at descending so the most recently
-  // checked item shows at the top — matches what the user just put in
-  // the basket. Items without a timestamp (older data before this
-  // column existed) fall to the bottom.
-  const remainingItems = optimisticItems.filter((item) => !item.checked);
-  const doneItems = optimisticItems
+  // checked item shows at the top. Items without a timestamp (older data
+  // before this column existed) fall to the bottom.
+  const remainingItems = filteredItems.filter((item) => !item.checked);
+  const doneItems = filteredItems
     .filter((item) => item.checked)
     .sort((a, b) => {
       if (!a.checked_at && !b.checked_at) return 0;
@@ -162,14 +172,22 @@ export function ShoppingList({
 
   return (
     <div className="flex flex-col gap-4">
-      {/* Progress bar */}
+      {/* Progress bar — always reflects overall progress, ignoring the search filter */}
       <ShoppingProgressBar
-        checkedCount={doneItems.length}
-        totalCount={optimisticItems.length}
+        checkedCount={checkedCount}
+        totalCount={totalCount}
       />
 
-      {/* Start Live Shopping button — only when there are unchecked items */}
-      {remainingItems.length > 0 && (
+      {totalCount > 0 && (
+        <SearchInput
+          value={searchQuery}
+          onChange={setSearchQuery}
+          placeholder="Search items..."
+        />
+      )}
+
+      {/* Start Live Shopping — based on unchecked items overall, ignoring the search filter */}
+      {checkedCount < totalCount && (
         <button
           type="button"
           onClick={() => setLiveMode(true)}
@@ -177,6 +195,12 @@ export function ShoppingList({
         >
           Start Live Shopping
         </button>
+      )}
+
+      {searchQuery.trim() && remainingItems.length === 0 && doneItems.length === 0 && (
+        <p className="text-center text-sm text-zinc-500">
+          No items match &ldquo;{searchQuery}&rdquo;.
+        </p>
       )}
 
       {/* Price toggle — only shown if there are prices to display */}

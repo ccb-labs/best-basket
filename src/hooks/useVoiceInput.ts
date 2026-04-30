@@ -22,13 +22,18 @@ interface SpeechRecognitionEvent {
   results: { [index: number]: { [index: number]: { transcript: string } } };
 }
 
+interface SpeechRecognitionErrorEvent {
+  error: string;
+  message?: string;
+}
+
 interface SpeechRecognitionInstance {
   lang: string;
   interimResults: boolean;
   maxAlternatives: number;
   onresult: ((event: SpeechRecognitionEvent) => void) | null;
   onend: (() => void) | null;
-  onerror: (() => void) | null;
+  onerror: ((event: SpeechRecognitionErrorEvent) => void) | null;
   start: () => void;
   stop: () => void;
   abort: () => void;
@@ -100,16 +105,30 @@ export function useVoiceInput({
       setIsListening(false);
     };
 
-    recognition.onerror = () => {
-      // Common errors: "not-allowed" (mic permission denied),
-      // "no-speech" (user didn't say anything). In all cases we just
-      // stop listening — the user can tap the mic button again.
+    recognition.onerror = (event) => {
+      // Common errors: "not-allowed" (mic permission denied or insecure
+      // origin), "no-speech" (silence), "audio-capture" (no microphone),
+      // "network" (browser can't reach the speech service). We log it so
+      // the cause is visible in DevTools, then stop listening — the user
+      // can tap the mic button again.
+      console.warn(
+        `[useVoiceInput] speech recognition error: ${event.error}${
+          event.message ? ` — ${event.message}` : ""
+        }`
+      );
       setIsListening(false);
     };
 
     recognitionRef.current = recognition;
-    recognition.start();
-    setIsListening(true);
+    // start() can throw synchronously (InvalidStateError) if a previous
+    // recognition is still active. Guard so the UI doesn't get stuck.
+    try {
+      recognition.start();
+      setIsListening(true);
+    } catch (err) {
+      console.warn("[useVoiceInput] failed to start recognition:", err);
+      setIsListening(false);
+    }
   }, [lang]);
 
   const stopListening = useCallback(() => {

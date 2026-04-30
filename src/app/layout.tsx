@@ -26,8 +26,12 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // suppressHydrationWarning silences false-positive hydration warnings
+  // caused by browser extensions (e.g. LanguageTool, Grammarly) that
+  // inject attributes like data-lt-installed onto <html> after the page
+  // loads. It only suppresses warnings on this element, not its children.
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >

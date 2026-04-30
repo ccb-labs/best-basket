@@ -18,7 +18,7 @@ import { useActionState, useRef, useState, useEffect } from "react";
 import { SubmitButton } from "@/components/SubmitButton";
 import { CreateCategoryForm } from "@/components/CreateCategoryForm";
 import { AddToListsDialog } from "@/components/AddToListsDialog";
-import { MicrophoneIcon } from "@/components/MicrophoneIcon";
+import { VoiceButton } from "@/components/VoiceButton";
 import { createClient } from "@/lib/supabase/client";
 import { useVoiceInput } from "@/hooks/useVoiceInput";
 import { parsePortugueseInput } from "@/lib/voice-parser";
@@ -194,26 +194,13 @@ export function AddItemForm({
               className="flex-1 rounded-md border border-zinc-300 px-3 py-2 text-sm focus:border-zinc-500 focus:outline-none"
             />
 
-            {/* Microphone button — only shown if the browser supports speech recognition.
-                Tapping it starts listening; tapping again (or waiting) stops it. */}
+            {/* Microphone — only on browsers that support speech recognition. */}
             {voiceSupported && (
-              <button
-                type="button"
-                onClick={isListening ? stopListening : startListening}
-                aria-label={isListening ? "Stop listening" : "Voice input"}
-                className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-md border transition-colors ${
-                  isListening
-                    ? "border-red-300 bg-red-50 text-red-500"
-                    : "border-zinc-300 text-zinc-400 hover:bg-zinc-50 hover:text-zinc-600"
-                }`}
-              >
-                {isListening ? (
-                  /* Pulsing red dot while listening */
-                  <span className="h-3 w-3 rounded-full bg-red-500 animate-pulse" />
-                ) : (
-                  <MicrophoneIcon />
-                )}
-              </button>
+              <VoiceButton
+                isListening={isListening}
+                onStart={startListening}
+                onStop={stopListening}
+              />
             )}
           </div>
 

@@ -67,6 +67,20 @@ export function groupItemsByCategory(
 }
 
 /**
+ * Filter items by a free-text search query (case-insensitive substring
+ * match against the item name). An empty/whitespace-only query returns
+ * the original array unchanged so callers don't need to special-case it.
+ */
+export function filterItemsByName<T extends { name: string }>(
+  items: T[],
+  query: string
+): T[] {
+  const normalized = query.trim().toLowerCase();
+  if (!normalized) return items;
+  return items.filter((item) => item.name.toLowerCase().includes(normalized));
+}
+
+/**
  * Portuguese pluralization for unit names.
  *
  * Common patterns:

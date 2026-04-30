@@ -510,10 +510,12 @@ export async function toggleItemChecked(
     return { error: "You must be logged in." };
   }
 
-  // RLS ensures users can only update items in their own lists
+  // RLS ensures users can only update items in their own lists.
+  // We also store checked_at so the "Done" list can be ordered by
+  // when each item was checked (most recent first).
   const { error } = await supabase
     .from("list_items")
-    .update({ checked })
+    .update({ checked, checked_at: checked ? new Date().toISOString() : null })
     .eq("id", itemId);
 
   if (error) {
@@ -545,10 +547,11 @@ export async function uncheckAllItems(
     return { error: "You must be logged in." };
   }
 
-  // Update all items in this list — RLS ensures ownership
+  // Update all items in this list — RLS ensures ownership.
+  // Also clear checked_at so re-checking later starts fresh.
   const { error } = await supabase
     .from("list_items")
-    .update({ checked: false })
+    .update({ checked: false, checked_at: null })
     .eq("list_id", listId);
 
   if (error) {

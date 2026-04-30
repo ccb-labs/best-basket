@@ -16,6 +16,7 @@ function makeItem(overrides: Partial<ListItemWithCategory> = {}): ListItemWithCa
     unit_id: "unit-un",
     category_id: null,
     checked: false,
+    checked_at: null,
     categories: null,
     units: { abbreviation: "Un", name: "Unidade", gender: "f" as const },
     ...overrides,

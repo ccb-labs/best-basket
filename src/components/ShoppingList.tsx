@@ -95,7 +95,13 @@ export function ShoppingList({
     ) =>
       currentItems.map((item) =>
         item.id === update.itemId
-          ? { ...item, checked: update.checked }
+          ? {
+              ...item,
+              checked: update.checked,
+              // Mirror what the server action writes, so the Done list
+              // reorders instantly without waiting for revalidation.
+              checked_at: update.checked ? new Date().toISOString() : null,
+            }
           : item
       )
   );
@@ -122,9 +128,20 @@ export function ShoppingList({
     });
   }
 
-  // Split items into unchecked (remaining) and checked (done)
+  // Split items into unchecked (remaining) and checked (done).
+  // Done items are sorted by checked_at descending so the most recently
+  // checked item shows at the top — matches what the user just put in
+  // the basket. Items without a timestamp (older data before this
+  // column existed) fall to the bottom.
   const remainingItems = optimisticItems.filter((item) => !item.checked);
-  const doneItems = optimisticItems.filter((item) => item.checked);
+  const doneItems = optimisticItems
+    .filter((item) => item.checked)
+    .sort((a, b) => {
+      if (!a.checked_at && !b.checked_at) return 0;
+      if (!a.checked_at) return 1;
+      if (!b.checked_at) return -1;
+      return b.checked_at.localeCompare(a.checked_at);
+    });
 
   // Group remaining items by category (using custom order if set)
   const sortedGroups = groupItemsByCategory(remainingItems, categorySortByName);

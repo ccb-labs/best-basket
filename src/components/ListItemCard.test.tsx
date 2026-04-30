@@ -42,6 +42,7 @@ const mockItem: ListItemWithCategory = {
   unit_id: "unit-l",
   category_id: "cat-1",
   checked: false,
+  checked_at: null,
   categories: { name: "Bebidas" },
   units: { abbreviation: "L", name: "Litro", gender: "m" as const },
 };
@@ -55,6 +56,7 @@ const mockItemNoCategory: ListItemWithCategory = {
   unit_id: "unit-un",
   category_id: null,
   checked: false,
+  checked_at: null,
   categories: null,
   units: { abbreviation: "Un", name: "Unidade", gender: "f" as const },
 };

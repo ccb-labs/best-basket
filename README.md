@@ -62,6 +62,20 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000) in your browser.
 
+### Applying new migrations
+
+`npx supabase start` applies all migrations on a fresh start. When you pull changes that include new files in `supabase/migrations/`, apply them to your already-running stack with:
+
+```bash
+npx supabase migration up
+```
+
+Or, for a clean rebuild from all migrations + seed:
+
+```bash
+npx supabase db reset
+```
+
 ### Stopping Supabase
 
 When you're done, stop the local Supabase containers:

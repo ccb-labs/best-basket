@@ -66,6 +66,13 @@ Tables to create (ask before implementing if unsure):
 - After creating a migration file, apply it locally with `supabase migration up` (or `supabase db reset` to wipe and re-apply everything from scratch).
 - Also update `supabase/schema.sql` to reflect the new shape — it's the human-readable reference, not the source of truth.
 - The hosted DB picks up new migrations on the next `supabase db push` / deploy.
+- **New tables must include explicit Data API grants.** Supabase is removing the auto-grant on `public` tables for all projects on 2026-10-30 — without an explicit `GRANT`, `supabase-js` / PostgREST returns a `42501` error. For every new `create table public.foo (...)`, add:
+  ```sql
+  grant select, insert, update, delete on public.foo to authenticated;
+  grant select, insert, update, delete on public.foo to service_role;
+  -- only add `grant select on public.foo to anon;` if the table must be readable when logged out
+  ```
+  RLS policies are still required on top — grants control role visibility, policies control per-row access.
 
 ## Code Style
 - Use TypeScript (but keep types simple — no complex generics)

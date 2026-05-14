@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Green background — iOS auto-rounds the corners for home screen icons -->
+  <rect width="512" height="512" fill="#16a34a"/>
+
+  <!-- Basket handle (white arc above the basket body) -->
+  <path d="M 168 224 Q 256 96 344 224"
+        fill="none" stroke="#ffffff" stroke-width="34"
+        stroke-linecap="round"/>
+
+  <!-- Basket body: a white trapezoid, wider at the top -->
+  <path d="M 104 224 L 408 224 L 368 408 L 144 408 Z"
+        fill="#ffffff"/>
+
+  <!-- Three green slats on the basket body to give it texture -->
+  <path d="M 200 248 L 192 384" stroke="#16a34a" stroke-width="16" stroke-linecap="round"/>
+  <path d="M 256 248 L 256 384" stroke="#16a34a" stroke-width="16" stroke-linecap="round"/>
+  <path d="M 312 248 L 320 384" stroke="#16a34a" stroke-width="16" stroke-linecap="round"/>
+</svg>

@@ -61,6 +61,11 @@ export function groupItemsByCategory(
     grouped.get(categoryName)!.push(item);
   }
 
+  // Within each category, push checked items to the bottom
+  for (const [, groupItems] of grouped) {
+    groupItems.sort((a, b) => Number(a.checked) - Number(b.checked));
+  }
+
   return [...grouped.entries()].sort(([a], [b]) =>
     compareCategoryNames(a, b, sortOrder)
   );

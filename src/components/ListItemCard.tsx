@@ -127,7 +127,7 @@ export function ListItemCard({
         // ─── View Mode ───
         <div className="flex items-center justify-between">
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-medium text-zinc-900">{item.name}</p>
+            <p className={`text-sm font-medium ${item.checked ? "text-zinc-400 line-through" : "text-zinc-900"}`}>{item.name}</p>
             <div className="flex items-center gap-2">
               <p className="text-xs text-zinc-400">{quantityDisplay}</p>
               {item.categories && (

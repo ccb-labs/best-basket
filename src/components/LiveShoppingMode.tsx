@@ -58,6 +58,10 @@ export function LiveShoppingMode({
   const allDone = uncheckedCount === 0 && phase === "idle";
   const bestDeal = currentItem ? (bestDeals[currentItem.name] ?? null) : null;
 
+  // Items that have been checked off — shown at the bottom with
+  // line-through styling so the user can see their progress
+  const checkedItems = items.filter((i) => i.checked);
+
   function handleClose() {
     stop();
     onClose();
@@ -87,6 +91,27 @@ export function LiveShoppingMode({
           totalCount={items.length}
         />
       </div>
+
+      {/* Checked items list — shows items that have been picked up,
+          with line-through styling so the user can track progress
+          without leaving live mode */}
+      {checkedItems.length > 0 && (
+        <div className="px-4 pb-2">
+          <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-green-600">
+            Done ({checkedItems.length})
+          </p>
+          <ul className="flex flex-wrap gap-x-3 gap-y-0.5">
+            {checkedItems.map((item) => (
+              <li
+                key={item.id}
+                className="text-sm text-zinc-400 line-through"
+              >
+                {item.name}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {/* Main content area */}
       <div className="flex flex-1 flex-col items-center justify-center px-4">

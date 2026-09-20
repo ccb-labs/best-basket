@@ -22,7 +22,11 @@ import { ShoppingItemCard } from "@/components/ShoppingItemCard";
 import { LiveShoppingMode } from "@/components/LiveShoppingMode";
 import { SearchInput } from "@/components/SearchInput";
 import { useConfirm } from "@/components/ConfirmDialog";
-import { filterItemsByName, groupItemsByCategory } from "@/lib/list-helpers";
+import {
+  filterItemsByName,
+  groupItemsByCategory,
+  splitCheckedItems,
+} from "@/lib/list-helpers";
 import type { BestDealInfo } from "@/lib/types";
 import type { ListItemWithCategory } from "@/lib/types";
 import type { ActionResult } from "@/app/(protected)/actions";
@@ -140,18 +144,10 @@ export function ShoppingList({
 
   const filteredItems = filterItemsByName(optimisticItems, searchQuery);
 
-  // Done items are sorted by checked_at descending so the most recently
-  // checked item shows at the top. Items without a timestamp (older data
-  // before this column existed) fall to the bottom.
-  const remainingItems = filteredItems.filter((item) => !item.checked);
-  const doneItems = filteredItems
-    .filter((item) => item.checked)
-    .sort((a, b) => {
-      if (!a.checked_at && !b.checked_at) return 0;
-      if (!a.checked_at) return 1;
-      if (!b.checked_at) return -1;
-      return b.checked_at.localeCompare(a.checked_at);
-    });
+  // Split into "still to buy" and "Done". The same helper powers the
+  // "Already Picked Up" section on the list detail page, so both screens
+  // order checked items the same way (most recently checked first).
+  const { remainingItems, doneItems } = splitCheckedItems(filteredItems);
 
   // Group remaining items by category (using custom order if set)
   const sortedGroups = groupItemsByCategory(remainingItems, categorySortByName);

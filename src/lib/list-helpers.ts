@@ -109,3 +109,33 @@ export function formatQuantity(
   const displayUnit = quantity > 1 ? pluralizePortuguese(unitName) : unitName;
   return `${quantity} ${displayUnit}`;
 }
+
+/**
+ * Split items into the ones still to pick up and the ones already checked off.
+ *
+ * Both the shopping mode ("Done") and the list detail page ("Already Picked
+ * Up") show unchecked items first and collect the checked ones into a
+ * section at the bottom, so the logic lives here instead of being written
+ * twice.
+ *
+ * Checked items are sorted by `checked_at` descending, so the most recently
+ * checked item appears at the top of the section. Items with no timestamp
+ * (rows created before that column existed) fall to the bottom.
+ */
+export function splitCheckedItems(items: ListItemWithCategory[]): {
+  remainingItems: ListItemWithCategory[];
+  doneItems: ListItemWithCategory[];
+} {
+  const remainingItems = items.filter((item) => !item.checked);
+
+  const doneItems = items
+    .filter((item) => item.checked)
+    .sort((a, b) => {
+      if (!a.checked_at && !b.checked_at) return 0;
+      if (!a.checked_at) return 1;
+      if (!b.checked_at) return -1;
+      return b.checked_at.localeCompare(a.checked_at);
+    });
+
+  return { remainingItems, doneItems };
+}

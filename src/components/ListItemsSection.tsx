@@ -13,7 +13,11 @@ import { useState } from "react";
 import { ListItemCard } from "@/components/ListItemCard";
 import { ItemPricesSection } from "@/components/ItemPricesSection";
 import { SearchInput } from "@/components/SearchInput";
-import { filterItemsByName, groupItemsByCategory } from "@/lib/list-helpers";
+import {
+  filterItemsByName,
+  groupItemsByCategory,
+  splitCheckedItems,
+} from "@/lib/list-helpers";
 import type {
   ListItemWithCategory,
   Category,
@@ -69,7 +73,45 @@ export function ListItemsSection({
   const [searchQuery, setSearchQuery] = useState("");
 
   const filteredItems = filterItemsByName(items, searchQuery);
-  const sortedGroups = groupItemsByCategory(filteredItems, categorySortByName);
+
+  // Items already checked off are pulled out of the category groups and
+  // shown in their own "Already Picked Up" section at the bottom — the same
+  // behaviour as the "Done" section in shopping mode. This keeps everything
+  // still to buy at the top of the screen, where it's easiest to reach.
+  const { remainingItems, doneItems } = splitCheckedItems(filteredItems);
+
+  const sortedGroups = groupItemsByCategory(remainingItems, categorySortByName);
+
+  // Both sections render the exact same card, so we define it once here as a
+  // small local function instead of repeating the JSX twice.
+  function renderItemCard(item: ListItemWithCategory) {
+    return (
+      <div key={item.id} className="rounded-md border border-zinc-200 bg-white">
+        <ListItemCard
+          item={item}
+          categories={categories}
+          units={units}
+          updateAction={updateItemAction}
+          deleteAction={deleteItemAction}
+        />
+        {item.product_id && (
+          <ItemPricesSection
+            productId={item.product_id}
+            listId={listId}
+            prices={pricesByProduct[item.product_id] ?? []}
+            stores={stores}
+            discounts={allDiscounts}
+            addPriceAction={addPriceAction}
+            updatePriceAction={updatePriceAction}
+            deletePriceAction={deletePriceAction}
+            addDiscountAction={addDiscountAction}
+            updateDiscountAction={updateDiscountAction}
+            deleteDiscountAction={deleteDiscountAction}
+          />
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-4">
@@ -79,51 +121,44 @@ export function ListItemsSection({
         placeholder="Search items..."
       />
 
-      {sortedGroups.length === 0 ? (
+      {sortedGroups.length === 0 && doneItems.length === 0 ? (
         <p className="text-center text-sm text-zinc-500">
           No items match &ldquo;{searchQuery}&rdquo;.
         </p>
       ) : (
-        <div className="flex flex-col gap-6">
-          {sortedGroups.map(([categoryName, groupItems]) => (
-            <div key={categoryName}>
-              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-400">
-                {categoryName}
+        <>
+          {/* Items still to buy, grouped by category */}
+          {sortedGroups.length > 0 && (
+            <div className="flex flex-col gap-6">
+              {sortedGroups.map(([categoryName, groupItems]) => (
+                <div key={categoryName}>
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-400">
+                    {categoryName}
+                  </p>
+                  <div className="flex flex-col gap-2">
+                    {groupItems.map((item) => renderItemCard(item))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Already Picked Up — checked items collected at the bottom,
+              most recently checked first (same as "Done" in shopping mode) */}
+          {doneItems.length > 0 && (
+            <div>
+              {sortedGroups.length > 0 && (
+                <hr className="mb-4 border-zinc-200" />
+              )}
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-green-600">
+                Already Picked Up ({doneItems.length})
               </p>
               <div className="flex flex-col gap-2">
-                {groupItems.map((item) => (
-                  <div
-                    key={item.id}
-                    className="rounded-md border border-zinc-200 bg-white"
-                  >
-                    <ListItemCard
-                      item={item}
-                      categories={categories}
-                      units={units}
-                      updateAction={updateItemAction}
-                      deleteAction={deleteItemAction}
-                    />
-                    {item.product_id && (
-                      <ItemPricesSection
-                        productId={item.product_id}
-                        listId={listId}
-                        prices={pricesByProduct[item.product_id] ?? []}
-                        stores={stores}
-                        discounts={allDiscounts}
-                        addPriceAction={addPriceAction}
-                        updatePriceAction={updatePriceAction}
-                        deletePriceAction={deletePriceAction}
-                        addDiscountAction={addDiscountAction}
-                        updateDiscountAction={updateDiscountAction}
-                        deleteDiscountAction={deleteDiscountAction}
-                      />
-                    )}
-                  </div>
-                ))}
+                {doneItems.map((item) => renderItemCard(item))}
               </div>
             </div>
-          ))}
-        </div>
+          )}
+        </>
       )}
     </div>
   );

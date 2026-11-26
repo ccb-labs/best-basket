@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { fetchListPageData } from "@/lib/list-data";
+import { buildSyncTargets, buildAddSyncTargets } from "@/lib/sync-targets";
 import { AddItemForm } from "@/components/AddItemForm";
 import { ListItemsSection } from "@/components/ListItemsSection";
 import { ShareListSection } from "@/components/ShareListSection";
@@ -79,19 +80,29 @@ export default async function ListDetailPage({
     shares = sharesData ?? [];
   }
 
-  // When viewing a template, fetch the user's shopping lists so the
-  // "Also add / update / remove in these lists?" dialogs can show them
-  // after adding, editing or deleting an item.
+  // The "Also add / update / remove in these ...?" dialogs work both ways:
+  // - On a template, they offer the user's shopping lists.
+  // - On a shopping list, they offer the user's templates.
+  // So we fetch whichever group is the "other side" of this page.
   let userLists: { id: string; name: string; source_template_id: string | null }[] = [];
-  if (list.is_template) {
+  let userTemplates: { id: string; name: string }[] = [];
+  {
     const supabase = await createClient();
-    const { data: listsData } = await supabase
+    const { data: otherSide } = await supabase
       .from("shopping_lists")
       .select("id, name, source_template_id")
-      .eq("is_template", false)
+      .eq("is_template", !list.is_template)
       .order("created_at", { ascending: false });
-    userLists = (listsData ?? []) as typeof userLists;
+    if (list.is_template) {
+      userLists = (otherSide ?? []) as typeof userLists;
+    } else {
+      userTemplates = (otherSide ?? []).map((t) => ({ id: t.id, name: t.name }));
+    }
   }
+
+  // What each dialog can offer (null = don't show the dialog at all)
+  const addSyncTargets = buildAddSyncTargets(list, userLists, userTemplates);
+  const itemSyncTargets = buildSyncTargets(list, userLists, userTemplates);
 
   // Convert the prices Map into a plain object so it can be passed to a
   // Client Component (Maps aren't serializable across the server/client boundary).
@@ -214,8 +225,8 @@ export default async function ListDetailPage({
           units={units}
           addItemAction={addItem}
           createCategoryAction={createCategory}
-          templateConfig={list.is_template && userLists.length > 0 ? {
-            userLists,
+          addSyncConfig={addSyncTargets ? {
+            ...addSyncTargets,
             addToMultipleListsAction: addItemToMultipleLists,
           } : undefined}
         />
@@ -255,9 +266,8 @@ export default async function ListDetailPage({
           addDiscountAction={addDiscount}
           updateDiscountAction={updateDiscount}
           deleteDiscountAction={deleteDiscount}
-          templateEditConfig={list.is_template && userLists.length > 0 ? {
-            templateId: id,
-            userLists,
+          itemSyncConfig={itemSyncTargets ? {
+            ...itemSyncTargets,
             findListsAction: findListsContainingItem,
             updateInListsAction: updateItemInMultipleLists,
             deleteFromListsAction: deleteItemFromMultipleLists,

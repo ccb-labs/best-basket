@@ -1,5 +1,5 @@
 import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
-import { useTemplateItemSync, type TemplateEditConfig } from "./useTemplateItemSync";
+import { useTemplateItemSync, type ItemSyncConfig } from "./useTemplateItemSync";
 import type { NewItemData } from "@/lib/types";
 
 const newData: NewItemData = {
@@ -9,14 +9,17 @@ const newData: NewItemData = {
   category_id: "cat-1",
 };
 
-function makeConfig(matchingIds: string[]): TemplateEditConfig {
+function makeConfig(matchingIds: string[]): ItemSyncConfig {
   return {
-    templateId: "tpl-1",
-    userLists: [
-      { id: "list-a", name: "Week 1", source_template_id: "tpl-1" },
-      { id: "list-b", name: "Party", source_template_id: null },
-      { id: "list-c", name: "No milk here", source_template_id: null },
+    targets: [
+      { id: "list-a", name: "Week 1" },
+      { id: "list-b", name: "Party" },
+      { id: "list-c", name: "No milk here" },
     ],
+    preselectedIds: ["list-a"],
+    noun: "list",
+    preselectedLabel: "From this template",
+    othersLabel: "Other lists",
     findListsAction: jest.fn().mockResolvedValue(matchingIds),
     updateInListsAction: jest.fn().mockResolvedValue({ error: null }),
     deleteFromListsAction: jest.fn().mockResolvedValue({ error: null }),
@@ -24,7 +27,7 @@ function makeConfig(matchingIds: string[]): TemplateEditConfig {
 }
 
 // Tiny test component: buttons that trigger offerUpdate / offerDelete, plus the dialog
-function Harness({ config }: { config: TemplateEditConfig | undefined }) {
+function Harness({ config }: { config: ItemSyncConfig | undefined }) {
   const { offerUpdate, offerDelete, syncDialog, syncError } = useTemplateItemSync(config);
   return (
     <div>
@@ -163,6 +166,52 @@ describe("useTemplateItemSync", () => {
         fireEvent.click(screen.getByText("trigger delete"));
       });
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    });
+  });
+
+  describe("on a shopping list (targets are templates)", () => {
+    function makeTemplateConfig(matchingIds: string[]): ItemSyncConfig {
+      return {
+        ...makeConfig(matchingIds),
+        targets: [
+          { id: "tpl-1", name: "Weekly" },
+          { id: "tpl-2", name: "Monthly" },
+        ],
+        preselectedIds: ["tpl-1"],
+        noun: "template",
+        preselectedLabel: "This list's template",
+        othersLabel: "Other templates",
+      };
+    }
+
+    it("asks about templates when an item is updated", async () => {
+      const config = makeTemplateConfig(["tpl-1"]);
+      render(<Harness config={config} />);
+
+      fireEvent.click(screen.getByText("trigger"));
+
+      await waitFor(() => expect(screen.getByRole("dialog")).toBeInTheDocument());
+      expect(screen.getByRole("dialog")).toHaveTextContent(
+        "Also update Milk to Organic Milk in these templates?"
+      );
+      fireEvent.click(screen.getByRole("button", { name: "Update in 1 template" }));
+      await waitFor(() =>
+        expect(config.updateInListsAction).toHaveBeenCalledWith(["tpl-1"], "Milk", newData)
+      );
+    });
+
+    it("asks about templates when an item is deleted", async () => {
+      const config = makeTemplateConfig(["tpl-1", "tpl-2"]);
+      render(<Harness config={config} />);
+
+      fireEvent.click(screen.getByText("trigger delete"));
+
+      await waitFor(() => expect(screen.getByRole("dialog")).toBeInTheDocument());
+      expect(screen.getByRole("dialog")).toHaveTextContent(
+        "Also remove Milk from these templates?"
+      );
+      expect(screen.getByLabelText("Weekly")).toBeChecked();
+      expect(screen.getByLabelText("Monthly")).not.toBeChecked();
     });
   });
 });

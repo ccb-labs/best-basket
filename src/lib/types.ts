@@ -151,3 +151,23 @@ export type BestDealInfo = {
   unitPrice: number;
   lineTotal: number;
 };
+
+/**
+ * Where a change to a list item can be copied to, and how to describe it.
+ * Used by the "Also add / update / remove in these lists?" dialogs, which
+ * work in both directions:
+ * - On a TEMPLATE, the targets are the user's shopping lists.
+ * - On a SHOPPING LIST, the targets are the user's templates.
+ */
+export type SyncTargets = {
+  /** Lists (or templates) the change could be copied to */
+  targets: { id: string; name: string }[];
+  /** Which targets start ticked (e.g. the template this list came from) */
+  preselectedIds: string[];
+  /** Word used in the dialog: "Add to 2 lists" vs "Add to 1 template" */
+  noun: "list" | "template";
+  /** Heading above the pre-ticked group, e.g. "From this template" */
+  preselectedLabel: string;
+  /** Heading above everything else, e.g. "Other lists" */
+  othersLabel: string;
+};

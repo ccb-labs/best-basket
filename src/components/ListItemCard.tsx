@@ -5,10 +5,9 @@
  * - View mode: shows item details + edit/delete buttons
  * - Edit mode: inline form with save/cancel buttons
  *
- * When the card is inside a TEMPLATE, the parent passes `onItemUpdated`
- * and `onItemDeleted`. After a successful save/delete we call them, and the
- * parent (ListItemsSection) offers to apply the same change to the item in
- * existing lists.
+ * The parent may pass `onItemUpdated` and `onItemDeleted`. After a
+ * successful save/delete we call them, and the parent (ListItemsSection)
+ * offers to apply the same change elsewhere (template ↔ shopping lists).
  */
 "use client";
 
@@ -45,10 +44,10 @@ export function ListItemCard({
     previousState: ActionResult,
     formData: FormData
   ) => Promise<ActionResult>;
-  /** Only set on templates — called after a save that changed something,
+  /** Optional — called after a save that changed something,
    *  with the OLD name and the new values. */
   onItemUpdated?: (oldName: string, newData: NewItemData) => void;
-  /** Only set on templates — called after the item was deleted */
+  /** Optional — called after the item was deleted */
   onItemDeleted?: (itemName: string) => void;
 }) {
   const [isEditing, setIsEditing] = useState(false);

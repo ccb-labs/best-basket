@@ -1,16 +1,15 @@
 /**
- * A mobile-friendly dialog that lets users apply a template change to
- * one or more existing shopping lists. It's used in two places:
- * - After ADDING an item to a template: "Also add Milk to these lists?"
- * - After EDITING an item in a template: "Also update Milk in these lists?"
- * - After DELETING an item in a template: "Also remove Milk from these lists?"
+ * A mobile-friendly dialog that lets users copy an item change (add, edit
+ * or delete) to other lists. It works in both directions:
+ * - On a TEMPLATE → copy to shopping lists:  "Also add Milk to these lists?"
+ * - On a LIST → copy to templates:           "Also add Milk to these templates?"
  *
  * The parent decides the wording (via `message` and `actionVerb`) and
- * which lists to show — the dialog itself only handles selection.
+ * which targets to show (via `targets`) — the dialog only handles selection.
  *
- * Lists created from this template are shown first and pre-selected,
- * so the user can confirm with a single tap. Other lists are shown
- * below, unchecked by default.
+ * The most likely targets (e.g. lists created from this template, or the
+ * template this list came from) are shown first and pre-selected, so the
+ * user can confirm with a single tap. The rest are shown below, unchecked.
  *
  * Follows the same layout and animation pattern as ConfirmDialog:
  * - On mobile: sits near the bottom (like an action sheet)
@@ -24,17 +23,13 @@
 import { useState, type ReactNode } from "react";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { useScrollLock } from "@/hooks/useScrollLock";
+import type { SyncTargets } from "@/lib/types";
 
-/** The shape of a shopping list passed to this dialog */
-type DialogList = {
-  id: string;
-  name: string;
-  source_template_id: string | null;
-};
+/** One row in the dialog: a list or a template */
+type DialogTarget = { id: string; name: string };
 
 export function TemplateListsDialog({
-  lists,
-  templateId,
+  targets,
   message,
   actionVerb,
   loadingLabel,
@@ -42,10 +37,8 @@ export function TemplateListsDialog({
   onConfirm,
   onCancel,
 }: {
-  /** All the user's non-template shopping lists */
-  lists: DialogList[];
-  /** The ID of the template being edited — used to identify derived lists */
-  templateId: string;
+  /** What can be ticked, which start ticked, and the group headings */
+  targets: SyncTargets;
   /** The question shown at the top, e.g. "Also add Milk to these lists?".
    *  A ReactNode (not just a string) so the parent can bold the item name. */
   message: ReactNode;
@@ -55,22 +48,20 @@ export function TemplateListsDialog({
   loadingLabel: string;
   /** Whether the confirm action is in progress */
   loading: boolean;
-  /** Called with the selected list IDs when the user confirms */
+  /** Called with the selected IDs when the user confirms */
   onConfirm: (selectedListIds: string[]) => void;
   /** Called when the user skips or closes the dialog */
   onCancel: () => void;
 }) {
-  // Split lists into two groups: derived from this template vs. others
-  const derivedLists = lists.filter(
-    (l) => l.source_template_id === templateId
-  );
-  const otherLists = lists.filter(
-    (l) => l.source_template_id !== templateId
-  );
+  const { noun, preselectedIds } = targets;
+  const all = targets.targets;
 
-  // Pre-select lists that were created from this template
+  // Split into two groups: the likely ones (pre-ticked) vs. the rest
+  const preselected = all.filter((t) => preselectedIds.includes(t.id));
+  const others = all.filter((t) => !preselectedIds.includes(t.id));
+
   const [selected, setSelected] = useState<Set<string>>(
-    () => new Set(derivedLists.map((l) => l.id))
+    () => new Set(preselected.map((t) => t.id))
   );
 
   // The little word between the verb and the count:
@@ -106,20 +97,20 @@ export function TemplateListsDialog({
       <div
         role="dialog"
         aria-modal="true"
-        aria-label={`${actionVerb} item in lists`}
+        aria-label={`${actionVerb} item in ${noun}s`}
         className="relative w-full max-w-sm rounded-2xl bg-white p-5 shadow-xl animate-slide-up max-h-[70vh] flex flex-col"
       >
         <p className="text-sm font-medium text-zinc-800">{message}</p>
 
         {/* Scrollable list area */}
         <div className="mt-3 flex-1 overflow-y-auto space-y-3">
-          {derivedLists.length > 0 && (
+          {preselected.length > 0 && (
             <div>
               <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-zinc-400">
-                From this template
+                {targets.preselectedLabel}
               </p>
               <ul className="space-y-1">
-                {derivedLists.map((list) => (
+                {preselected.map((list) => (
                   <ListCheckbox
                     key={list.id}
                     list={list}
@@ -131,13 +122,13 @@ export function TemplateListsDialog({
             </div>
           )}
 
-          {otherLists.length > 0 && (
+          {others.length > 0 && (
             <div>
               <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-zinc-400">
-                Other lists
+                {targets.othersLabel}
               </p>
               <ul className="space-y-1">
-                {otherLists.map((list) => (
+                {others.map((list) => (
                   <ListCheckbox
                     key={list.id}
                     list={list}
@@ -149,8 +140,8 @@ export function TemplateListsDialog({
             </div>
           )}
 
-          {lists.length === 0 && (
-            <p className="text-sm text-zinc-500">No shopping lists yet.</p>
+          {all.length === 0 && (
+            <p className="text-sm text-zinc-500">Nothing to choose from yet.</p>
           )}
         </div>
 
@@ -163,7 +154,7 @@ export function TemplateListsDialog({
           >
             Skip
           </button>
-          {lists.length > 0 && (
+          {all.length > 0 && (
             <button
               type="button"
               onClick={() => onConfirm(Array.from(selected))}
@@ -172,7 +163,7 @@ export function TemplateListsDialog({
             >
               {loading
                 ? loadingLabel
-                : `${actionVerb} ${preposition} ${selected.size} list${selected.size !== 1 ? "s" : ""}`}
+                : `${actionVerb} ${preposition} ${selected.size} ${noun}${selected.size !== 1 ? "s" : ""}`}
             </button>
           )}
         </div>
@@ -181,13 +172,13 @@ export function TemplateListsDialog({
   );
 }
 
-/** A single checkbox row for a shopping list */
+/** A single checkbox row for a list or template */
 function ListCheckbox({
   list,
   checked,
   onChange,
 }: {
-  list: DialogList;
+  list: DialogTarget;
   checked: boolean;
   onChange: () => void;
 }) {

@@ -1,18 +1,24 @@
 import { render, screen, fireEvent } from "@testing-library/react";
 import { TemplateListsDialog } from "./TemplateListsDialog";
+import type { SyncTargets } from "@/lib/types";
 
-const lists = [
-  { id: "list-a", name: "Week 1", source_template_id: "tpl-1" },
-  { id: "list-b", name: "Party", source_template_id: null },
-];
+const listTargets: SyncTargets = {
+  targets: [
+    { id: "list-a", name: "Week 1" },
+    { id: "list-b", name: "Party" },
+  ],
+  preselectedIds: ["list-a"],
+  noun: "list",
+  preselectedLabel: "From this template",
+  othersLabel: "Other lists",
+};
 
 function renderDialog(overrides: Partial<Parameters<typeof TemplateListsDialog>[0]> = {}) {
   const onConfirm = jest.fn();
   const onCancel = jest.fn();
   render(
     <TemplateListsDialog
-      lists={lists}
-      templateId="tpl-1"
+      targets={listTargets}
       message="Also update Milk in these lists?"
       actionVerb="Update"
       loadingLabel="Updating..."
@@ -29,6 +35,12 @@ describe("TemplateListsDialog", () => {
   it("shows the message passed by the parent", () => {
     renderDialog();
     expect(screen.getByText("Also update Milk in these lists?")).toBeInTheDocument();
+  });
+
+  it("pre-selects only the preselected targets, under their own heading", () => {
+    renderDialog();
+    expect(screen.getByText("From this template")).toBeInTheDocument();
+    expect(screen.getByText("Other lists")).toBeInTheDocument();
   });
 
   it("pre-selects only lists created from this template", () => {
@@ -63,5 +75,27 @@ describe("TemplateListsDialog", () => {
     const { onCancel } = renderDialog();
     fireEvent.click(screen.getByRole("button", { name: "Skip" }));
     expect(onCancel).toHaveBeenCalled();
+  });
+
+  it("talks about templates when the targets are templates", () => {
+    renderDialog({
+      targets: {
+        targets: [
+          { id: "tpl-1", name: "Weekly" },
+          { id: "tpl-2", name: "Monthly" },
+        ],
+        preselectedIds: ["tpl-1"],
+        noun: "template",
+        preselectedLabel: "This list's template",
+        othersLabel: "Other templates",
+      },
+      actionVerb: "Add",
+      loadingLabel: "Adding...",
+    });
+    expect(screen.getByRole("dialog", { name: "Add item in templates" })).toBeInTheDocument();
+    expect(screen.getByText("This list's template")).toBeInTheDocument();
+    expect(screen.getByLabelText("Weekly")).toBeChecked();
+    expect(screen.getByLabelText("Monthly")).not.toBeChecked();
+    expect(screen.getByRole("button", { name: "Add to 1 template" })).toBeInTheDocument();
   });
 });

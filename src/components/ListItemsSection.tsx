@@ -27,6 +27,7 @@ import type {
   Discount,
 } from "@/lib/types";
 import type { ActionResult } from "@/app/(protected)/actions";
+import type { TemplateEditConfig } from "@/hooks/useUpdateInLists";
 
 type ServerAction = (
   previousState: ActionResult,
@@ -50,6 +51,7 @@ export function ListItemsSection({
   addDiscountAction,
   updateDiscountAction,
   deleteDiscountAction,
+  templateEditConfig,
 }: {
   listId: string;
   items: ListItemWithCategory[];
@@ -69,6 +71,8 @@ export function ListItemsSection({
   addDiscountAction: ServerAction;
   updateDiscountAction: ServerAction;
   deleteDiscountAction: ServerAction;
+  /** Only set on templates — lets item edits be copied to existing lists */
+  templateEditConfig?: TemplateEditConfig;
 }) {
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -93,6 +97,7 @@ export function ListItemsSection({
           units={units}
           updateAction={updateItemAction}
           deleteAction={deleteItemAction}
+          templateEditConfig={templateEditConfig}
         />
         {item.product_id && (
           <ItemPricesSection

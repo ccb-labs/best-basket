@@ -13,6 +13,8 @@ import {
   addItem,
   addItemToMultipleLists,
   updateItem,
+  findListsContainingItem,
+  updateItemInMultipleLists,
   deleteItem,
   createCategory,
   addPrice,
@@ -78,7 +80,8 @@ export default async function ListDetailPage({
   }
 
   // When viewing a template, fetch the user's shopping lists so the
-  // "Also add to these lists?" dialog can show them after adding an item.
+  // "Also add to these lists?" / "Also update in these lists?" dialogs
+  // can show them after adding or editing an item.
   let userLists: { id: string; name: string; source_template_id: string | null }[] = [];
   if (list.is_template) {
     const supabase = await createClient();
@@ -255,6 +258,12 @@ export default async function ListDetailPage({
             addDiscountAction={addDiscount}
             updateDiscountAction={updateDiscount}
             deleteDiscountAction={deleteDiscount}
+            templateEditConfig={list.is_template && userLists.length > 0 ? {
+              templateId: id,
+              userLists,
+              findListsAction: findListsContainingItem,
+              updateInListsAction: updateItemInMultipleLists,
+            } : undefined}
           />
         )}
       </div>

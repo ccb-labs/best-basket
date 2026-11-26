@@ -448,6 +448,131 @@ export async function updateItem(
 }
 
 /**
+ * Escape the special characters used by SQL `ILIKE` patterns.
+ *
+ * ILIKE treats `%` as "any text" and `_` as "any single character".
+ * We want an exact (case-insensitive) name match, so a product called
+ * "100% Juice" must not match "100 Juice", "100xx Juice", etc. Putting a
+ * backslash in front of each special character makes it literal.
+ */
+function escapeLikePattern(value: string): string {
+  return value.replace(/[\\%_]/g, (char) => `\\${char}`);
+}
+
+/**
+ * Find which of the given lists contain an item with this name.
+ *
+ * Called right after editing an item in a template, so the
+ * "Also update in these lists?" dialog only shows lists that actually
+ * have the product (there's nothing to update in the other lists).
+ *
+ * We match by name (case-insensitive) instead of product_id because a
+ * shared list owned by someone else uses THAT person's product catalog,
+ * so the same "Milk" can have a different product_id there.
+ *
+ * Returns the matching list IDs (an empty array if none or on error).
+ */
+export async function findListsContainingItem(
+  listIds: string[],
+  itemName: string
+): Promise<string[]> {
+  if (listIds.length === 0 || itemName.trim().length === 0) {
+    return [];
+  }
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("list_items")
+    .select("list_id")
+    .in("list_id", listIds)
+    .ilike("name", escapeLikePattern(itemName.trim()));
+
+  if (error || !data) {
+    return [];
+  }
+
+  // A list can contain the same item twice — remove duplicates with a Set
+  return Array.from(new Set(data.map((row) => row.list_id as string)));
+}
+
+/**
+ * Apply a template item edit to the same item in other shopping lists.
+ *
+ * Called from the "Also update in these lists?" dialog that appears after
+ * editing an item in a template. `oldName` is the item's name BEFORE the
+ * edit — that's how we find it in the other lists (the user may have just
+ * renamed it, so the new name wouldn't match anything yet).
+ *
+ * Like updateItem(), the product is looked up in each list OWNER's catalog,
+ * so renaming "Milk" to "Organic Milk" links each list to the right product.
+ */
+export async function updateItemInMultipleLists(
+  listIds: string[],
+  oldName: string,
+  itemData: NewItemData
+): Promise<ActionResult> {
+  if (listIds.length === 0) {
+    return { error: null };
+  }
+
+  if (!itemData.name || itemData.name.trim().length === 0) {
+    return { error: "Item name cannot be empty." };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { error: "You must be logged in." };
+  }
+
+  const newName = itemData.name.trim();
+  const failedLists: string[] = [];
+
+  for (const listId of listIds) {
+    const ownerId = await getListOwnerId(supabase, listId);
+    const productId = ownerId
+      ? await findOrCreateProduct(supabase, ownerId, newName)
+      : null;
+
+    if (!productId) {
+      failedLists.push(listId);
+      continue;
+    }
+
+    // RLS ensures users can only update items in their own or shared lists
+    const { error } = await supabase
+      .from("list_items")
+      .update({
+        name: newName,
+        product_id: productId,
+        quantity: itemData.quantity,
+        unit_id: itemData.unit_id,
+        category_id: itemData.category_id,
+      })
+      .eq("list_id", listId)
+      .ilike("name", escapeLikePattern(oldName.trim()));
+
+    if (error) {
+      failedLists.push(listId);
+    } else {
+      revalidatePath(`/lists/${listId}`);
+    }
+  }
+
+  if (failedLists.length > 0) {
+    const succeeded = listIds.length - failedLists.length;
+    return {
+      error: `Updated ${succeeded} of ${listIds.length} lists. Some lists could not be updated.`,
+    };
+  }
+
+  return { error: null };
+}
+
+/**
  * Delete a list item.
  *
  * This also deletes related item_prices because the database schema

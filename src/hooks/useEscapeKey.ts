@@ -1,6 +1,6 @@
 /**
  * Calls the given callback when the user presses the Escape key.
- * Used by dialog components (ConfirmDialog, AddToListsDialog) to
+ * Used by dialog components (ConfirmDialog, TemplateListsDialog) to
  * close on Escape — extracted here so the logic isn't duplicated.
  */
 import { useEffect } from "react";

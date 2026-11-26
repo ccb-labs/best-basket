@@ -4,12 +4,19 @@
  * Same dual-mode pattern as ShoppingListCard:
  * - View mode: shows item details + edit/delete buttons
  * - Edit mode: inline form with save/cancel buttons
+ *
+ * When the card is inside a TEMPLATE (templateEditConfig is set), saving an
+ * edit also offers to apply the same change to the item in existing lists.
  */
 "use client";
 
 import { useState, useActionState, useRef } from "react";
 import { SubmitButton } from "@/components/SubmitButton";
 import { useConfirm } from "@/components/ConfirmDialog";
+import {
+  useUpdateInLists,
+  type TemplateEditConfig,
+} from "@/hooks/useUpdateInLists";
 import { formatQuantity } from "@/lib/list-helpers";
 import type { ListItemWithCategory, Category, Unit } from "@/lib/types";
 import type { ActionResult } from "@/app/(protected)/actions";
@@ -20,6 +27,7 @@ export function ListItemCard({
   units,
   updateAction,
   deleteAction,
+  templateEditConfig,
 }: {
   /** The item to display (includes joined category name) */
   item: ListItemWithCategory;
@@ -37,16 +45,40 @@ export function ListItemCard({
     previousState: ActionResult,
     formData: FormData
   ) => Promise<ActionResult>;
+  /** Only set on templates — enables "Also update in these lists?" */
+  templateEditConfig?: TemplateEditConfig;
 }) {
   const [isEditing, setIsEditing] = useState(false);
   const deleteFormRef = useRef<HTMLFormElement>(null);
   const { requestConfirm, confirmDialog } = useConfirm();
+  const { offerUpdate, updateDialog, updateInListsError } =
+    useUpdateInLists(templateEditConfig);
 
   const [updateState, updateFormAction] = useActionState(
     async (previousState: ActionResult, formData: FormData) => {
       const result = await updateAction(previousState, formData);
       if (!result.error) {
         setIsEditing(false);
+
+        // Read the submitted values so we can (1) check whether anything
+        // actually changed and (2) copy the same values to other lists.
+        const newData = {
+          name: ((formData.get("name") as string) ?? "").trim(),
+          quantity: parseFloat(formData.get("quantity") as string) || 1,
+          unit_id: formData.get("unit_id") as string,
+          category_id: (formData.get("category_id") as string) || null,
+        };
+        const changed =
+          newData.name !== item.name ||
+          newData.quantity !== item.quantity ||
+          newData.unit_id !== item.unit_id ||
+          newData.category_id !== item.category_id;
+
+        // `item` still holds the values from BEFORE the save, so item.name
+        // is the old name — that's what we look for in the other lists.
+        if (changed) {
+          await offerUpdate(item.name, newData);
+        }
       }
       return result;
     },
@@ -58,7 +90,7 @@ export function ListItemCard({
 
   const quantityDisplay = formatQuantity(item.quantity, item.units.name);
 
-  const error = updateState.error || deleteState.error;
+  const error = updateState.error || deleteState.error || updateInListsError;
 
   return (
     <div className="p-3">
@@ -174,6 +206,7 @@ export function ListItemCard({
       )}
 
       {confirmDialog}
+      {updateDialog}
     </div>
   );
 }

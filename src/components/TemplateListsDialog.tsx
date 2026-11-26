@@ -1,6 +1,11 @@
 /**
- * A mobile-friendly dialog that lets users add a newly-created template
- * item to one or more existing shopping lists.
+ * A mobile-friendly dialog that lets users apply a template change to
+ * one or more existing shopping lists. It's used in two places:
+ * - After ADDING an item to a template: "Also add Milk to these lists?"
+ * - After EDITING an item in a template: "Also update Milk in these lists?"
+ *
+ * The parent decides the wording (via `message` and `actionVerb`) and
+ * which lists to show — the dialog itself only handles selection.
  *
  * Lists created from this template are shown first and pre-selected,
  * so the user can confirm with a single tap. Other lists are shown
@@ -15,7 +20,7 @@
  */
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { useScrollLock } from "@/hooks/useScrollLock";
 
@@ -26,10 +31,12 @@ type DialogList = {
   source_template_id: string | null;
 };
 
-export function AddToListsDialog({
+export function TemplateListsDialog({
   lists,
   templateId,
-  itemName,
+  message,
+  actionVerb,
+  loadingLabel,
   loading,
   onConfirm,
   onCancel,
@@ -38,8 +45,13 @@ export function AddToListsDialog({
   lists: DialogList[];
   /** The ID of the template being edited — used to identify derived lists */
   templateId: string;
-  /** The name of the item just added (shown in the header) */
-  itemName: string;
+  /** The question shown at the top, e.g. "Also add Milk to these lists?".
+   *  A ReactNode (not just a string) so the parent can bold the item name. */
+  message: ReactNode;
+  /** Verb used on the confirm button, e.g. "Add" → "Add to 2 lists" */
+  actionVerb: "Add" | "Update";
+  /** Button text while the action runs, e.g. "Adding..." */
+  loadingLabel: string;
   /** Whether the confirm action is in progress */
   loading: boolean;
   /** Called with the selected list IDs when the user confirms */
@@ -88,13 +100,10 @@ export function AddToListsDialog({
       <div
         role="dialog"
         aria-modal="true"
-        aria-label="Add item to lists"
+        aria-label={`${actionVerb} item in lists`}
         className="relative w-full max-w-sm rounded-2xl bg-white p-5 shadow-xl animate-slide-up max-h-[70vh] flex flex-col"
       >
-        <p className="text-sm font-medium text-zinc-800">
-          Also add <span className="font-semibold">{itemName}</span> to
-          these lists?
-        </p>
+        <p className="text-sm font-medium text-zinc-800">{message}</p>
 
         {/* Scrollable list area */}
         <div className="mt-3 flex-1 overflow-y-auto space-y-3">
@@ -155,7 +164,9 @@ export function AddToListsDialog({
               disabled={selected.size === 0 || loading}
               className="rounded-lg bg-zinc-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-zinc-800 active:bg-zinc-700 disabled:opacity-50"
             >
-              {loading ? "Adding..." : `Add to ${selected.size} list${selected.size !== 1 ? "s" : ""}`}
+              {loading
+                ? loadingLabel
+                : `${actionVerb} ${actionVerb === "Add" ? "to" : "in"} ${selected.size} list${selected.size !== 1 ? "s" : ""}`}
             </button>
           )}
         </div>

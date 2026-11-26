@@ -17,7 +17,7 @@
 import { useActionState, useRef, useState, useEffect } from "react";
 import { SubmitButton } from "@/components/SubmitButton";
 import { CreateCategoryForm } from "@/components/CreateCategoryForm";
-import { AddToListsDialog } from "@/components/AddToListsDialog";
+import { TemplateListsDialog } from "@/components/TemplateListsDialog";
 import { VoiceButton } from "@/components/VoiceButton";
 import { createClient } from "@/lib/supabase/client";
 import { useVoiceInput } from "@/hooks/useVoiceInput";
@@ -77,7 +77,7 @@ export function AddItemForm({
   const [categoryValue, setCategoryValue] = useState("");
 
   // ─── "Add to lists" dialog state (template mode only) ───
-  const [showAddToListsDialog, setShowAddToListsDialog] = useState(false);
+  const [showTemplateListsDialog, setShowTemplateListsDialog] = useState(false);
   const [pendingItemData, setPendingItemData] = useState<NewItemData | null>(null);
   const [addingToLists, setAddingToLists] = useState(false);
 
@@ -154,7 +154,7 @@ export function AddItemForm({
             unit_id: unitValue,
             category_id: categoryValue || null,
           });
-          setShowAddToListsDialog(true);
+          setShowTemplateListsDialog(true);
         }
 
         setNameValue("");
@@ -296,11 +296,18 @@ export function AddItemForm({
       )}
 
       {/* "Also add to these lists?" dialog — only shown on templates */}
-      {showAddToListsDialog && pendingItemData && templateConfig && (
-        <AddToListsDialog
+      {showTemplateListsDialog && pendingItemData && templateConfig && (
+        <TemplateListsDialog
           lists={templateConfig.userLists}
           templateId={listId}
-          itemName={pendingItemData.name}
+          message={
+            <>
+              Also add <span className="font-semibold">{pendingItemData.name}</span> to
+              these lists?
+            </>
+          }
+          actionVerb="Add"
+          loadingLabel="Adding..."
           loading={addingToLists}
           onConfirm={async (selectedListIds) => {
             if (selectedListIds.length > 0) {
@@ -308,11 +315,11 @@ export function AddItemForm({
               await templateConfig.addToMultipleListsAction(selectedListIds, pendingItemData);
               setAddingToLists(false);
             }
-            setShowAddToListsDialog(false);
+            setShowTemplateListsDialog(false);
             setPendingItemData(null);
           }}
           onCancel={() => {
-            setShowAddToListsDialog(false);
+            setShowTemplateListsDialog(false);
             setPendingItemData(null);
           }}
         />

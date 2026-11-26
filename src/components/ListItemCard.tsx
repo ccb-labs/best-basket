@@ -5,9 +5,10 @@
  * - View mode: shows item details + edit/delete buttons
  * - Edit mode: inline form with save/cancel buttons
  *
- * When the card is inside a TEMPLATE, the parent passes `onItemUpdated`.
- * After a successful save we call it, and the parent (ListItemsSection)
- * offers to apply the same change to the item in existing lists.
+ * When the card is inside a TEMPLATE, the parent passes `onItemUpdated`
+ * and `onItemDeleted`. After a successful save/delete we call them, and the
+ * parent (ListItemsSection) offers to apply the same change to the item in
+ * existing lists.
  */
 "use client";
 
@@ -26,6 +27,7 @@ export function ListItemCard({
   updateAction,
   deleteAction,
   onItemUpdated,
+  onItemDeleted,
 }: {
   /** The item to display (includes joined category name) */
   item: ListItemWithCategory;
@@ -46,6 +48,8 @@ export function ListItemCard({
   /** Only set on templates — called after a save that changed something,
    *  with the OLD name and the new values. */
   onItemUpdated?: (oldName: string, newData: NewItemData) => void;
+  /** Only set on templates — called after the item was deleted */
+  onItemDeleted?: (itemName: string) => void;
 }) {
   const [isEditing, setIsEditing] = useState(false);
   const deleteFormRef = useRef<HTMLFormElement>(null);
@@ -87,9 +91,18 @@ export function ListItemCard({
     },
     { error: null }
   );
-  const [deleteState, deleteFormAction] = useActionState(deleteAction, {
-    error: null,
-  });
+  const [deleteState, deleteFormAction] = useActionState(
+    async (previousState: ActionResult, formData: FormData) => {
+      const result = await deleteAction(previousState, formData);
+      // Tell the parent so it can offer to remove the item from other lists.
+      // This card is about to disappear, so the parent shows the dialog.
+      if (!result.error && onItemDeleted) {
+        onItemDeleted(item.name);
+      }
+      return result;
+    },
+    { error: null }
+  );
 
   const quantityDisplay = formatQuantity(item.quantity, item.units.name);
 

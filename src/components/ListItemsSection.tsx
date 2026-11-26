@@ -13,6 +13,7 @@ import { useState } from "react";
 import { ListItemCard } from "@/components/ListItemCard";
 import { ItemPricesSection } from "@/components/ItemPricesSection";
 import { SearchInput } from "@/components/SearchInput";
+import { EmptyItemState } from "@/components/EmptyItemState";
 import {
   filterItemsByName,
   groupItemsByCategory,
@@ -28,9 +29,9 @@ import type {
 } from "@/lib/types";
 import type { ActionResult } from "@/app/(protected)/actions";
 import {
-  useUpdateInLists,
+  useTemplateItemSync,
   type TemplateEditConfig,
-} from "@/hooks/useUpdateInLists";
+} from "@/hooks/useTemplateItemSync";
 
 type ServerAction = (
   previousState: ActionResult,
@@ -79,12 +80,30 @@ export function ListItemsSection({
 }) {
   const [searchQuery, setSearchQuery] = useState("");
 
-  // "Also update in these lists?" dialog for templates. It lives HERE (not
-  // in each ListItemCard) because this section stays on screen while cards
-  // can be removed and re-created — e.g. when an edit changes an item's
-  // category, the item moves to another group and gets a brand-new card.
-  const { offerUpdate, updateDialog, updateInListsError } =
-    useUpdateInLists(templateEditConfig);
+  // "Also update / remove in these lists?" dialogs for templates. They live
+  // HERE (not in each ListItemCard) because this section stays on screen
+  // while cards come and go — e.g. changing an item's category moves it to
+  // another group (a brand-new card), and deleting removes the card entirely.
+  const { offerUpdate, offerDelete, syncDialog, syncError } =
+    useTemplateItemSync(templateEditConfig);
+
+  // No items at all → show the empty state. We return it from HERE (instead
+  // of the page choosing between EmptyItemState and this section) so this
+  // section stays on screen — and with it the sync dialog — when the user
+  // deletes the last item of a template.
+  if (items.length === 0) {
+    return (
+      <>
+        {syncError && (
+          <p className="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-600">
+            {syncError}
+          </p>
+        )}
+        <EmptyItemState />
+        {syncDialog}
+      </>
+    );
+  }
 
   const filteredItems = filterItemsByName(items, searchQuery);
 
@@ -108,6 +127,7 @@ export function ListItemsSection({
           updateAction={updateItemAction}
           deleteAction={deleteItemAction}
           onItemUpdated={templateEditConfig ? offerUpdate : undefined}
+          onItemDeleted={templateEditConfig ? offerDelete : undefined}
         />
         {item.product_id && (
           <ItemPricesSection
@@ -130,9 +150,9 @@ export function ListItemsSection({
 
   return (
     <div className="flex flex-col gap-4">
-      {updateInListsError && (
+      {syncError && (
         <p className="rounded-md bg-red-50 p-3 text-sm text-red-600">
-          {updateInListsError}
+          {syncError}
         </p>
       )}
 
@@ -182,7 +202,7 @@ export function ListItemsSection({
         </>
       )}
 
-      {updateDialog}
+      {syncDialog}
     </div>
   );
 }

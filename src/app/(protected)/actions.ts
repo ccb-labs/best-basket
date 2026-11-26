@@ -573,6 +573,59 @@ export async function updateItemInMultipleLists(
 }
 
 /**
+ * Delete an item (by name) from several shopping lists at once.
+ *
+ * Called from the "Also remove from these lists?" dialog that appears after
+ * deleting an item from a template. Matches by name (case-insensitive) for
+ * the same reason as findListsContainingItem(): shared lists use their
+ * owner's product catalog, so product IDs can differ between lists.
+ *
+ * Related item_prices are removed automatically (ON DELETE CASCADE).
+ */
+export async function deleteItemFromMultipleLists(
+  listIds: string[],
+  itemName: string
+): Promise<ActionResult> {
+  if (listIds.length === 0 || itemName.trim().length === 0) {
+    return { error: null };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { error: "You must be logged in." };
+  }
+
+  const failedLists: string[] = [];
+  for (const listId of listIds) {
+    // RLS ensures users can only delete items in their own or shared lists
+    const { error } = await supabase
+      .from("list_items")
+      .delete()
+      .eq("list_id", listId)
+      .ilike("name", escapeLikePattern(itemName.trim()));
+
+    if (error) {
+      failedLists.push(listId);
+    } else {
+      revalidatePath(`/lists/${listId}`);
+    }
+  }
+
+  if (failedLists.length > 0) {
+    const succeeded = listIds.length - failedLists.length;
+    return {
+      error: `Removed from ${succeeded} of ${listIds.length} lists. Some lists could not be updated.`,
+    };
+  }
+
+  return { error: null };
+}
+
+/**
  * Delete a list item.
  *
  * This also deletes related item_prices because the database schema

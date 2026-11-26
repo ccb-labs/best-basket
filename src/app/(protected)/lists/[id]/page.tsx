@@ -4,7 +4,6 @@ import { createClient } from "@/lib/supabase/server";
 import { fetchListPageData } from "@/lib/list-data";
 import { AddItemForm } from "@/components/AddItemForm";
 import { ListItemsSection } from "@/components/ListItemsSection";
-import { EmptyItemState } from "@/components/EmptyItemState";
 import { ShareListSection } from "@/components/ShareListSection";
 import { SubmitButton } from "@/components/SubmitButton";
 import { ActionFormButton } from "@/components/ActionFormButton";
@@ -16,6 +15,7 @@ import {
   findListsContainingItem,
   updateItemInMultipleLists,
   deleteItem,
+  deleteItemFromMultipleLists,
   createCategory,
   addPrice,
   updatePrice,
@@ -80,8 +80,8 @@ export default async function ListDetailPage({
   }
 
   // When viewing a template, fetch the user's shopping lists so the
-  // "Also add to these lists?" / "Also update in these lists?" dialogs
-  // can show them after adding or editing an item.
+  // "Also add / update / remove in these lists?" dialogs can show them
+  // after adding, editing or deleting an item.
   let userLists: { id: string; name: string; source_template_id: string | null }[] = [];
   if (list.is_template) {
     const supabase = await createClient();
@@ -238,34 +238,31 @@ export default async function ListDetailPage({
           inside ListItemsSection — a Client Component — because it needs
           local state to filter as the user types. */}
       <div className="mt-6">
-        {items.length === 0 ? (
-          <EmptyItemState />
-        ) : (
-          <ListItemsSection
-            listId={id}
-            items={items}
-            categories={categories}
-            units={units}
-            stores={stores}
-            pricesByProduct={pricesByProductObj}
-            allDiscounts={allDiscounts}
-            categorySortByName={categorySortByName}
-            updateItemAction={updateItem}
-            deleteItemAction={deleteItem}
-            addPriceAction={addPrice}
-            updatePriceAction={updatePrice}
-            deletePriceAction={deletePrice}
-            addDiscountAction={addDiscount}
-            updateDiscountAction={updateDiscount}
-            deleteDiscountAction={deleteDiscount}
-            templateEditConfig={list.is_template && userLists.length > 0 ? {
-              templateId: id,
-              userLists,
-              findListsAction: findListsContainingItem,
-              updateInListsAction: updateItemInMultipleLists,
-            } : undefined}
-          />
-        )}
+        <ListItemsSection
+          listId={id}
+          items={items}
+          categories={categories}
+          units={units}
+          stores={stores}
+          pricesByProduct={pricesByProductObj}
+          allDiscounts={allDiscounts}
+          categorySortByName={categorySortByName}
+          updateItemAction={updateItem}
+          deleteItemAction={deleteItem}
+          addPriceAction={addPrice}
+          updatePriceAction={updatePrice}
+          deletePriceAction={deletePrice}
+          addDiscountAction={addDiscount}
+          updateDiscountAction={updateDiscount}
+          deleteDiscountAction={deleteDiscount}
+          templateEditConfig={list.is_template && userLists.length > 0 ? {
+            templateId: id,
+            userLists,
+            findListsAction: findListsContainingItem,
+            updateInListsAction: updateItemInMultipleLists,
+            deleteFromListsAction: deleteItemFromMultipleLists,
+          } : undefined}
+        />
       </div>
     </div>
   );

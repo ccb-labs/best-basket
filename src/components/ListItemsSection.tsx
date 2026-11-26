@@ -27,7 +27,10 @@ import type {
   Discount,
 } from "@/lib/types";
 import type { ActionResult } from "@/app/(protected)/actions";
-import type { TemplateEditConfig } from "@/hooks/useUpdateInLists";
+import {
+  useUpdateInLists,
+  type TemplateEditConfig,
+} from "@/hooks/useUpdateInLists";
 
 type ServerAction = (
   previousState: ActionResult,
@@ -76,6 +79,13 @@ export function ListItemsSection({
 }) {
   const [searchQuery, setSearchQuery] = useState("");
 
+  // "Also update in these lists?" dialog for templates. It lives HERE (not
+  // in each ListItemCard) because this section stays on screen while cards
+  // can be removed and re-created — e.g. when an edit changes an item's
+  // category, the item moves to another group and gets a brand-new card.
+  const { offerUpdate, updateDialog, updateInListsError } =
+    useUpdateInLists(templateEditConfig);
+
   const filteredItems = filterItemsByName(items, searchQuery);
 
   // Items already checked off are pulled out of the category groups and
@@ -97,7 +107,7 @@ export function ListItemsSection({
           units={units}
           updateAction={updateItemAction}
           deleteAction={deleteItemAction}
-          templateEditConfig={templateEditConfig}
+          onItemUpdated={templateEditConfig ? offerUpdate : undefined}
         />
         {item.product_id && (
           <ItemPricesSection
@@ -120,6 +130,12 @@ export function ListItemsSection({
 
   return (
     <div className="flex flex-col gap-4">
+      {updateInListsError && (
+        <p className="rounded-md bg-red-50 p-3 text-sm text-red-600">
+          {updateInListsError}
+        </p>
+      )}
+
       <SearchInput
         value={searchQuery}
         onChange={setSearchQuery}
@@ -165,6 +181,8 @@ export function ListItemsSection({
           )}
         </>
       )}
+
+      {updateDialog}
     </div>
   );
 }

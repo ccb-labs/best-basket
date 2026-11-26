@@ -5,10 +5,14 @@
  * It's the editing counterpart of the "Also add to these lists?" dialog
  * that AddItemForm shows after adding an item to a template.
  *
- * Why a hook? ListItemCard is already fairly long. Moving the dialog's
- * state (which lists to show, loading, errors) into a hook keeps the card
- * focused on view/edit mode. It follows the same pattern as useConfirm():
+ * Why a hook? It keeps the dialog's state (which lists to show, loading,
+ * errors) out of the components. It follows the same pattern as useConfirm():
  * the hook returns a function to open the dialog plus the dialog JSX to render.
+ *
+ * Where it's used: ListItemsSection (the whole list of items), NOT in each
+ * ListItemCard. A card can be removed and re-created after a save — e.g.
+ * changing the category moves the item into another group — and any dialog
+ * state inside the old card would be lost with it.
  *
  * Flow:
  * 1. The item is saved in the template (normal updateItem action).
@@ -60,10 +64,16 @@ export function useUpdateInLists(config: TemplateEditConfig | undefined) {
     if (!config || config.userLists.length === 0) return;
 
     setError(null);
-    const matchingIds = await config.findListsAction(
-      config.userLists.map((l) => l.id),
-      oldName
-    );
+    let matchingIds: string[] = [];
+    try {
+      matchingIds = await config.findListsAction(
+        config.userLists.map((l) => l.id),
+        oldName
+      );
+    } catch {
+      setError("Could not check your other lists. Please try again.");
+      return;
+    }
     const lists = config.userLists.filter((l) => matchingIds.includes(l.id));
 
     // Only open the dialog when at least one list has this item
@@ -75,13 +85,17 @@ export function useUpdateInLists(config: TemplateEditConfig | undefined) {
   async function handleConfirm(selectedListIds: string[]) {
     if (!config || !pending) return;
     setLoading(true);
-    const result = await config.updateInListsAction(
-      selectedListIds,
-      pending.oldName,
-      pending.itemData
-    );
+    try {
+      const result = await config.updateInListsAction(
+        selectedListIds,
+        pending.oldName,
+        pending.itemData
+      );
+      setError(result.error);
+    } catch {
+      setError("Could not update your other lists. Please try again.");
+    }
     setLoading(false);
-    setError(result.error);
     setPending(null);
   }
 

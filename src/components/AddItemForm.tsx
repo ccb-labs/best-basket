@@ -23,7 +23,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useVoiceInput } from "@/hooks/useVoiceInput";
 import { parsePortugueseInput } from "@/lib/voice-parser";
 import type { ActionResult } from "@/app/(protected)/actions";
-import type { Category, NewItemData, Product, Unit } from "@/lib/types";
+import type { Category, NewItemData, Product, SyncTargets, Unit } from "@/lib/types";
 
 const MIN_SEARCH_LENGTH = 2;
 
@@ -33,7 +33,7 @@ export function AddItemForm({
   units,
   addItemAction,
   createCategoryAction,
-  templateConfig,
+  addSyncConfig,
 }: {
   /** The shopping list this item will be added to */
   listId: string;
@@ -51,9 +51,9 @@ export function AddItemForm({
     previousState: ActionResult,
     formData: FormData
   ) => Promise<ActionResult>;
-  /** When set, enables the "also add to these lists?" dialog after adding an item */
-  templateConfig?: {
-    userLists: { id: string; name: string; source_template_id: string | null }[];
+  /** When set, enables the "Also add to these lists/templates?" dialog
+   *  after adding an item (see buildAddSyncTargets for when that is). */
+  addSyncConfig?: SyncTargets & {
     addToMultipleListsAction: (
       listIds: string[],
       itemData: NewItemData
@@ -147,7 +147,7 @@ export function AddItemForm({
       const result = await addItemAction(previousState, formData);
       if (!result.error) {
         // Capture item data BEFORE resetting fields (needed for the dialog)
-        if (templateConfig && templateConfig.userLists.length > 0) {
+        if (addSyncConfig && addSyncConfig.targets.length > 0) {
           setPendingItemData({
             name: nameValue.trim(),
             quantity: parseFloat(quantityValue) || 1,
@@ -295,15 +295,14 @@ export function AddItemForm({
         </p>
       )}
 
-      {/* "Also add to these lists?" dialog — only shown on templates */}
-      {showTemplateListsDialog && pendingItemData && templateConfig && (
+      {/* "Also add to these lists/templates?" dialog */}
+      {showTemplateListsDialog && pendingItemData && addSyncConfig && (
         <TemplateListsDialog
-          lists={templateConfig.userLists}
-          templateId={listId}
+          targets={addSyncConfig}
           message={
             <>
               Also add <span className="font-semibold">{pendingItemData.name}</span> to
-              these lists?
+              these {addSyncConfig.noun}s?
             </>
           }
           actionVerb="Add"
@@ -312,7 +311,7 @@ export function AddItemForm({
           onConfirm={async (selectedListIds) => {
             if (selectedListIds.length > 0) {
               setAddingToLists(true);
-              await templateConfig.addToMultipleListsAction(selectedListIds, pendingItemData);
+              await addSyncConfig.addToMultipleListsAction(selectedListIds, pendingItemData);
               setAddingToLists(false);
             }
             setShowTemplateListsDialog(false);

@@ -30,7 +30,7 @@ import type {
 import type { ActionResult } from "@/app/(protected)/actions";
 import {
   useTemplateItemSync,
-  type TemplateEditConfig,
+  type ItemSyncConfig,
 } from "@/hooks/useTemplateItemSync";
 
 type ServerAction = (
@@ -55,7 +55,7 @@ export function ListItemsSection({
   addDiscountAction,
   updateDiscountAction,
   deleteDiscountAction,
-  templateEditConfig,
+  itemSyncConfig,
 }: {
   listId: string;
   items: ListItemWithCategory[];
@@ -75,17 +75,18 @@ export function ListItemsSection({
   addDiscountAction: ServerAction;
   updateDiscountAction: ServerAction;
   deleteDiscountAction: ServerAction;
-  /** Only set on templates — lets item edits be copied to existing lists */
-  templateEditConfig?: TemplateEditConfig;
+  /** When set, item edits/deletes can be copied to other lists (on a
+   *  template) or to templates (on a shopping list) */
+  itemSyncConfig?: ItemSyncConfig;
 }) {
   const [searchQuery, setSearchQuery] = useState("");
 
-  // "Also update / remove in these lists?" dialogs for templates. They live
+  // "Also update / remove in these lists/templates?" dialogs. They live
   // HERE (not in each ListItemCard) because this section stays on screen
   // while cards come and go — e.g. changing an item's category moves it to
   // another group (a brand-new card), and deleting removes the card entirely.
   const { offerUpdate, offerDelete, syncDialog, syncError } =
-    useTemplateItemSync(templateEditConfig);
+    useTemplateItemSync(itemSyncConfig);
 
   // No items at all → show the empty state. We return it from HERE (instead
   // of the page choosing between EmptyItemState and this section) so this
@@ -126,8 +127,8 @@ export function ListItemsSection({
           units={units}
           updateAction={updateItemAction}
           deleteAction={deleteItemAction}
-          onItemUpdated={templateEditConfig ? offerUpdate : undefined}
-          onItemDeleted={templateEditConfig ? offerDelete : undefined}
+          onItemUpdated={itemSyncConfig ? offerUpdate : undefined}
+          onItemDeleted={itemSyncConfig ? offerDelete : undefined}
         />
         {item.product_id && (
           <ItemPricesSection

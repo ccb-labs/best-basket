@@ -84,6 +84,19 @@ describe("useUpdateInLists", () => {
     expect(config.updateInListsAction).toHaveBeenCalledWith(["list-a"], "Milk", newData);
   });
 
+  it("closes without updating any list when the user taps Skip", async () => {
+    const config = makeConfig(["list-a", "list-b"]);
+    render(<Harness config={config} />);
+
+    fireEvent.click(screen.getByText("trigger"));
+    await waitFor(() => expect(screen.getByRole("dialog")).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole("button", { name: "Skip" }));
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(config.updateInListsAction).not.toHaveBeenCalled();
+  });
+
   it("shows the error returned by the update action", async () => {
     const config = makeConfig(["list-a"]);
     (config.updateInListsAction as jest.Mock).mockResolvedValue({

@@ -85,6 +85,7 @@ export default defineConfig({
         "item-prices.spec.ts",
         "products.spec.ts",
         "shopping-mode.spec.ts",
+        "templates.spec.ts",
       ],
       use: {
         ...devices["Desktop Chrome"],

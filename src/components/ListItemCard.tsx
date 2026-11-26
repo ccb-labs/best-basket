@@ -5,18 +5,17 @@
  * - View mode: shows item details + edit/delete buttons
  * - Edit mode: inline form with save/cancel buttons
  *
- * When the card is inside a TEMPLATE (templateEditConfig is set), saving an
- * edit also offers to apply the same change to the item in existing lists.
+ * When the card is inside a TEMPLATE, the parent passes `onItemUpdated`
+ * and `onItemDeleted`. After a successful save/delete we call them, and the
+ * parent (ListItemsSection) offers to apply the same change to the item in
+ * existing lists.
  */
 "use client";
 
 import { useState, useActionState, useRef } from "react";
 import { SubmitButton } from "@/components/SubmitButton";
 import { useConfirm } from "@/components/ConfirmDialog";
-import {
-  useUpdateInLists,
-  type TemplateEditConfig,
-} from "@/hooks/useUpdateInLists";
+import type { NewItemData } from "@/lib/types";
 import { formatQuantity } from "@/lib/list-helpers";
 import type { ListItemWithCategory, Category, Unit } from "@/lib/types";
 import type { ActionResult } from "@/app/(protected)/actions";
@@ -27,7 +26,8 @@ export function ListItemCard({
   units,
   updateAction,
   deleteAction,
-  templateEditConfig,
+  onItemUpdated,
+  onItemDeleted,
 }: {
   /** The item to display (includes joined category name) */
   item: ListItemWithCategory;
@@ -45,14 +45,15 @@ export function ListItemCard({
     previousState: ActionResult,
     formData: FormData
   ) => Promise<ActionResult>;
-  /** Only set on templates — enables "Also update in these lists?" */
-  templateEditConfig?: TemplateEditConfig;
+  /** Only set on templates — called after a save that changed something,
+   *  with the OLD name and the new values. */
+  onItemUpdated?: (oldName: string, newData: NewItemData) => void;
+  /** Only set on templates — called after the item was deleted */
+  onItemDeleted?: (itemName: string) => void;
 }) {
   const [isEditing, setIsEditing] = useState(false);
   const deleteFormRef = useRef<HTMLFormElement>(null);
   const { requestConfirm, confirmDialog } = useConfirm();
-  const { offerUpdate, updateDialog, updateInListsError } =
-    useUpdateInLists(templateEditConfig);
 
   const [updateState, updateFormAction] = useActionState(
     async (previousState: ActionResult, formData: FormData) => {
@@ -76,21 +77,36 @@ export function ListItemCard({
 
         // `item` still holds the values from BEFORE the save, so item.name
         // is the old name — that's what we look for in the other lists.
-        if (changed) {
-          await offerUpdate(item.name, newData);
+        //
+        // Why not show the dialog right here, inside this card? Because this
+        // card can disappear after the save: e.g. changing the category moves
+        // the item to another group, and React builds a NEW card there. A
+        // dialog living in the old card would vanish with it. So we hand the
+        // change to the parent, which stays on screen.
+        if (changed && onItemUpdated) {
+          onItemUpdated(item.name, newData);
         }
       }
       return result;
     },
     { error: null }
   );
-  const [deleteState, deleteFormAction] = useActionState(deleteAction, {
-    error: null,
-  });
+  const [deleteState, deleteFormAction] = useActionState(
+    async (previousState: ActionResult, formData: FormData) => {
+      const result = await deleteAction(previousState, formData);
+      // Tell the parent so it can offer to remove the item from other lists.
+      // This card is about to disappear, so the parent shows the dialog.
+      if (!result.error && onItemDeleted) {
+        onItemDeleted(item.name);
+      }
+      return result;
+    },
+    { error: null }
+  );
 
   const quantityDisplay = formatQuantity(item.quantity, item.units.name);
 
-  const error = updateState.error || deleteState.error || updateInListsError;
+  const error = updateState.error || deleteState.error;
 
   return (
     <div className="p-3">
@@ -206,7 +222,6 @@ export function ListItemCard({
       )}
 
       {confirmDialog}
-      {updateDialog}
     </div>
   );
 }

@@ -57,6 +57,13 @@ describe("ListItemsSection", () => {
     jest.clearAllMocks();
   });
 
+  it("shows the empty state (and no search box) when there are no items", () => {
+    renderSection([]);
+
+    expect(screen.getByText("No items yet")).toBeInTheDocument();
+    expect(screen.queryByPlaceholderText("Search items...")).not.toBeInTheDocument();
+  });
+
   it("does not show the Already Picked Up section when nothing is checked", () => {
     renderSection([
       makeItem({ id: "a", name: "Milk", categories: { name: "Bebidas" } }),

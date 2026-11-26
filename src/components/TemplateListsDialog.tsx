@@ -3,6 +3,7 @@
  * one or more existing shopping lists. It's used in two places:
  * - After ADDING an item to a template: "Also add Milk to these lists?"
  * - After EDITING an item in a template: "Also update Milk in these lists?"
+ * - After DELETING an item in a template: "Also remove Milk from these lists?"
  *
  * The parent decides the wording (via `message` and `actionVerb`) and
  * which lists to show — the dialog itself only handles selection.
@@ -49,7 +50,7 @@ export function TemplateListsDialog({
    *  A ReactNode (not just a string) so the parent can bold the item name. */
   message: ReactNode;
   /** Verb used on the confirm button, e.g. "Add" → "Add to 2 lists" */
-  actionVerb: "Add" | "Update";
+  actionVerb: "Add" | "Update" | "Remove";
   /** Button text while the action runs, e.g. "Adding..." */
   loadingLabel: string;
   /** Whether the confirm action is in progress */
@@ -71,6 +72,11 @@ export function TemplateListsDialog({
   const [selected, setSelected] = useState<Set<string>>(
     () => new Set(derivedLists.map((l) => l.id))
   );
+
+  // The little word between the verb and the count:
+  // "Add to 2 lists", "Update in 2 lists", "Remove from 2 lists"
+  const preposition =
+    actionVerb === "Add" ? "to" : actionVerb === "Update" ? "in" : "from";
 
   useEscapeKey(onCancel);
   useScrollLock();
@@ -166,7 +172,7 @@ export function TemplateListsDialog({
             >
               {loading
                 ? loadingLabel
-                : `${actionVerb} ${actionVerb === "Add" ? "to" : "in"} ${selected.size} list${selected.size !== 1 ? "s" : ""}`}
+                : `${actionVerb} ${preposition} ${selected.size} list${selected.size !== 1 ? "s" : ""}`}
             </button>
           )}
         </div>

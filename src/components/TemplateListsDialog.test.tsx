@@ -47,6 +47,11 @@ describe("TemplateListsDialog", () => {
     expect(screen.getByRole("button", { name: "Add to 1 list" })).toBeInTheDocument();
   });
 
+  it("uses 'Remove from' wording for the delete flow", () => {
+    renderDialog({ actionVerb: "Remove", loadingLabel: "Removing..." });
+    expect(screen.getByRole("button", { name: "Remove from 1 list" })).toBeInTheDocument();
+  });
+
   it("confirms with the selected list IDs", () => {
     const { onConfirm } = renderDialog();
     fireEvent.click(screen.getByLabelText("Party"));

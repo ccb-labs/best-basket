@@ -1,5 +1,5 @@
 import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
-import { useUpdateInLists, type TemplateEditConfig } from "./useUpdateInLists";
+import { useTemplateItemSync, type TemplateEditConfig } from "./useTemplateItemSync";
 import type { NewItemData } from "@/lib/types";
 
 const newData: NewItemData = {
@@ -19,22 +19,24 @@ function makeConfig(matchingIds: string[]): TemplateEditConfig {
     ],
     findListsAction: jest.fn().mockResolvedValue(matchingIds),
     updateInListsAction: jest.fn().mockResolvedValue({ error: null }),
+    deleteFromListsAction: jest.fn().mockResolvedValue({ error: null }),
   };
 }
 
-// Tiny test component: a button that triggers offerUpdate, plus the dialog
+// Tiny test component: buttons that trigger offerUpdate / offerDelete, plus the dialog
 function Harness({ config }: { config: TemplateEditConfig | undefined }) {
-  const { offerUpdate, updateDialog, updateInListsError } = useUpdateInLists(config);
+  const { offerUpdate, offerDelete, syncDialog, syncError } = useTemplateItemSync(config);
   return (
     <div>
       <button onClick={() => offerUpdate("Milk", newData)}>trigger</button>
-      {updateInListsError && <p>{updateInListsError}</p>}
-      {updateDialog}
+      <button onClick={() => offerDelete("Milk")}>trigger delete</button>
+      {syncError && <p>{syncError}</p>}
+      {syncDialog}
     </div>
   );
 }
 
-describe("useUpdateInLists", () => {
+describe("useTemplateItemSync", () => {
   it("shows only lists that contain the item, mentioning the rename", async () => {
     const config = makeConfig(["list-a", "list-b"]);
     render(<Harness config={config} />);
@@ -111,5 +113,56 @@ describe("useUpdateInLists", () => {
     expect(
       await screen.findByText("Updated 0 of 1 lists. Some lists could not be updated.")
     ).toBeInTheDocument();
+  });
+
+  describe("delete", () => {
+    it("asks to remove the item from the lists that contain it", async () => {
+      const config = makeConfig(["list-a", "list-b"]);
+      render(<Harness config={config} />);
+
+      fireEvent.click(screen.getByText("trigger delete"));
+
+      await waitFor(() => expect(screen.getByRole("dialog")).toBeInTheDocument());
+      expect(config.findListsAction).toHaveBeenCalledWith(["list-a", "list-b", "list-c"], "Milk");
+      expect(screen.getByRole("dialog")).toHaveTextContent("Also remove Milk from these lists?");
+      expect(screen.queryByLabelText("No milk here")).not.toBeInTheDocument();
+    });
+
+    it("removes the item from the selected lists", async () => {
+      const config = makeConfig(["list-a", "list-b"]);
+      render(<Harness config={config} />);
+
+      fireEvent.click(screen.getByText("trigger delete"));
+      await waitFor(() => expect(screen.getByRole("dialog")).toBeInTheDocument());
+
+      // "Week 1" is pre-selected (made from this template); also tick "Party"
+      fireEvent.click(screen.getByLabelText("Party"));
+      fireEvent.click(screen.getByRole("button", { name: "Remove from 2 lists" }));
+
+      await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+      expect(config.deleteFromListsAction).toHaveBeenCalledWith(["list-a", "list-b"], "Milk");
+      expect(config.updateInListsAction).not.toHaveBeenCalled();
+    });
+
+    it("Skip leaves the other lists untouched", async () => {
+      const config = makeConfig(["list-a"]);
+      render(<Harness config={config} />);
+
+      fireEvent.click(screen.getByText("trigger delete"));
+      await waitFor(() => expect(screen.getByRole("dialog")).toBeInTheDocument());
+      fireEvent.click(screen.getByRole("button", { name: "Skip" }));
+
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+      expect(config.deleteFromListsAction).not.toHaveBeenCalled();
+    });
+
+    it("does not open the dialog when no list contains the item", async () => {
+      const config = makeConfig([]);
+      render(<Harness config={config} />);
+      await act(async () => {
+        fireEvent.click(screen.getByText("trigger delete"));
+      });
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    });
   });
 });
